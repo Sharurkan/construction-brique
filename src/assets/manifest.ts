@@ -33,6 +33,7 @@ export const TEXTURE_TILE_KEYS = [
   'wool', // tuile claire neutre (cotton_tan) à teinter avec WOOL_TINTS
   'bedrock',
   'glass_frame', // base des blocs pleins d'or, d'émeraude et de diamant (recolorée, voir GEM_BLOCK_TILES)
+  'water', // opaque dans le PNG : semi-transparence et teinte données par le matériau eau
 ] as const;
 
 export type TextureTileKey = (typeof TEXTURE_TILE_KEYS)[number];
@@ -61,6 +62,8 @@ export const SOUNDS: Record<string, string[]> = {
   click: variants('click', 1),
   select: variants('select', 1),
   new_world: variants('new_world', 1),
+  /** Entrée dans l'eau (son « goutte » Kenney Interface Sounds). */
+  splash: variants('splash', 1),
 };
 
 /**

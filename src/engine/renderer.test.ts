@@ -138,8 +138,39 @@ describe('WorldRenderer : meshes gemmes', () => {
     const r = new WorldRenderer(new World(16, 16, 16), new THREE.Scene(), fakeAtlas());
     r.setTime(12.5);
     expect(r.chunkMaterials.gem.uniforms.uTime.value).toBe(12.5);
+    expect(r.chunkMaterials.water.uniforms.uTime.value).toBe(12.5);
     r.setTime(4096 + 3);
     expect(r.chunkMaterials.gem.uniforms.uTime.value).toBe(3);
+    r.dispose();
+  });
+});
+
+describe('WorldRenderer : meshes eau', () => {
+  const waterMeshes = (r: WorldRenderer) =>
+    r.group.children.filter((m): m is THREE.Mesh => m instanceof THREE.Mesh && m.name.endsWith('(water)'));
+
+  it('mesh eau seulement dans les chunks qui en contiennent, matériau eau transparent sans écriture de profondeur', () => {
+    const world = new World(32, 16, 16); // 2 chunks
+    for (let x = 0; x < 32; x++) for (let z = 0; z < 16; z++) world.setBlockRaw(x, 0, z, BlockId.Stone);
+    const r = new WorldRenderer(world, new THREE.Scene(), fakeAtlas());
+    r.rebuildAll();
+    expect(r.stats.waterMeshes).toBe(0);
+    world.setBlock(20, 1, 3, BlockId.Water);
+    r.update(8);
+    const w = waterMeshes(r);
+    expect(w).toHaveLength(1);
+    expect(w[0].name).toBe('chunk 1,0,0 (water)');
+    const mat = w[0].material as THREE.ShaderMaterial;
+    expect(mat).toBe(r.chunkMaterials.water);
+    expect(mat.transparent).toBe(true);
+    expect(mat.depthWrite).toBe(false);
+    expect(r.stats.waterMeshes).toBe(1);
+    expect(r.stats.meshes).toBe(3);
+    world.setBlock(20, 1, 3, BlockId.Air);
+    r.update(8);
+    expect(waterMeshes(r)).toHaveLength(0);
+    expect(r.stats.waterMeshes).toBe(0);
+    expect(r.stats.meshes).toBe(2);
     r.dispose();
   });
 });

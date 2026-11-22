@@ -16,6 +16,9 @@ export interface Vec3Like {
  * - `distance` = distance le long du rayon (direction normalisée) jusqu'à la face touchée.
  * - Si l'origine est déjà dans un bloc plein, il est renvoyé avec distance 0 et une
  *   normale opposée à l'axe dominant de la direction.
+ * - `ignore` (optionnel) : id de bloc traversé comme de l'air TANT QUE le rayon n'a pas encore
+ *   rencontré d'air (ex. l'eau dans laquelle se trouve l'œil : on vise le fond ou la berge ;
+ *   une autre étendue d'eau plus loin, après de l'air, redevient visable).
  * - `out` (optionnel) : résultat réutilisé (aucune allocation par appel) ; il est renvoyé
  *   rempli en cas d'impact, sinon `null` (son contenu est alors indéterminé).
  */
@@ -28,6 +31,7 @@ export function raycastVoxels(
   dir: Vec3Like,
   maxDist: number,
   out?: RaycastHit,
+  ignore = -1,
 ): RaycastHit | null {
   const len = Math.hypot(dir.x, dir.y, dir.z);
   if (!(len > 0) || !(maxDist > 0)) return null;
@@ -84,7 +88,8 @@ export function raycastVoxels(
   while (guard-- > 0) {
     if (x < 0 || y < 0 || z < 0 || x >= sizeX || y >= sizeY || z >= sizeZ) return null;
     const id = get(x, y, z);
-    if (id !== BlockId.Air) {
+    if (id === BlockId.Air) ignore = -1;
+    else if (id !== ignore) {
       if (!out) return { block: [x, y, z], normal: [nx, ny, nz], id: id as BlockId, distance: t };
       out.block[0] = x;
       out.block[1] = y;

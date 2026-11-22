@@ -80,6 +80,43 @@ describe('raycast', () => {
   });
 });
 
+describe('raycast et eau', () => {
+  /** Mare : fond de pierre en y = 4, eau en y = 5 et 6, sur x, z ∈ [8, 12]. */
+  function pond(): World {
+    const w = new World(32, 32, 32);
+    for (let x = 8; x <= 12; x++) {
+      for (let z = 8; z <= 12; z++) {
+        w.setBlockRaw(x, 4, z, BlockId.Stone);
+        w.setBlockRaw(x, 5, z, BlockId.Water);
+        w.setBlockRaw(x, 6, z, BlockId.Water);
+      }
+    }
+    return w;
+  }
+
+  it("depuis l'air : la visée s'arrête sur l'eau (on la casse, ou on pose dessus)", () => {
+    const hit = pond().raycast({ x: 10.5, y: 9, z: 10.5 }, { x: 0, y: -1, z: 0 }, 6);
+    expect(hit!.id).toBe(BlockId.Water);
+    expect(hit!.block).toEqual([10, 6, 10]);
+    expect(hit!.normal).toEqual([0, 1, 0]);
+  });
+
+  it("œil dans l'eau : l'eau autour est traversée, on vise le fond", () => {
+    const hit = pond().raycast({ x: 10.5, y: 6.6, z: 10.5 }, { x: 0, y: -1, z: 0 }, 6);
+    expect(hit!.id).toBe(BlockId.Stone);
+    expect(hit!.block).toEqual([10, 4, 10]);
+    expect(hit!.normal).toEqual([0, 1, 0]); // bloc à poser = eau juste au-dessus du fond
+  });
+
+  it("œil dans l'eau : une autre eau, après de l'air, redevient visable", () => {
+    const w = pond();
+    w.setBlockRaw(10, 9, 10, BlockId.Water); // goutte suspendue au-dessus de la mare
+    const hit = w.raycast({ x: 10.5, y: 6.5, z: 10.5 }, { x: 0, y: 1, z: 0 }, 6);
+    expect(hit!.id).toBe(BlockId.Water);
+    expect(hit!.block).toEqual([10, 9, 10]);
+  });
+});
+
 describe('raycastInto (sans allocation)', () => {
   it('même résultat que raycast, dans l’objet fourni ; null si rien', async () => {
     const { createRaycastHit } = await import('./raycast');

@@ -44,6 +44,7 @@ Dossier `textures/` (images de 128 × 128 pixels, depuis `PNG/Tiles/`) :
 | wool.png | cotton_tan.png |
 | bedrock.png | greystone.png |
 | glass_frame.png | glass_frame.png |
+| water.png | water.png |
 
 Dossier `icons/` : btn_break.png ← `PNG/Items/pick_diamond.png`.
 
@@ -56,6 +57,9 @@ obtenus en **recolorant** la texture `glass_frame.png` (cadre biseauté) au
 chargement du jeu, en jaune or, en vert émeraude et en bleu diamant (simple changement de
 couleur, rien n'est dessiné en plus). C'est une œuvre dérivée d'un fichier
 CC0, donc CC0 elle aussi. Le fichier `glass_frame.png` est livré tel quel.
+
+Eau : la texture `water.png` est livrée telle quelle ; pendant le jeu elle est
+teintée en bleu, rendue semi-transparente et animée (défilement) par le moteur.
 
 Les petits cubes de la palette sont dessinés avec ces mêmes textures.
 
@@ -110,7 +114,7 @@ Dossier `sounds/` (sons OGG, depuis `Audio/`) :
 | step_wood_1..2.ogg | footstep_wood_000..001.ogg |
 | step_stone_1..2.ogg | footstep_concrete_000..001.ogg |
 
-### Interface Sounds — saut et sélection
+### Interface Sounds — saut, sélection et « plouf »
 
 Source : https://kenney.nl/assets/interface-sounds
 
@@ -120,6 +124,7 @@ Dossier `sounds/` :
 | --- | --- |
 | jump_1.ogg | maximize_001.ogg |
 | select_1.ogg | select_001.ogg |
+| splash_1.ogg | drop_002.ogg |
 
 ### UI Audio — clic
 

@@ -10,11 +10,13 @@ interface ChunkEntry {
   transparent: THREE.Mesh | null;
   /** Blocs précieux pleins (matériau gemme) : créé seulement si le chunk en contient. */
   gem: THREE.Mesh | null;
+  /** Eau (matériau eau animé, semi-transparent) : créé seulement si le chunk en contient. */
+  water: THREE.Mesh | null;
   triangles: number;
 }
 
 /** Passe d'un mesh de chunk (nom, groupes de matériaux, attribut de face). */
-type MeshKind = 'opaque' | 'transparent' | 'gem';
+type MeshKind = 'opaque' | 'transparent' | 'gem' | 'water';
 
 export interface WorldRendererStats {
   /** Triangles actuellement affichables (tous chunks). */
@@ -23,6 +25,8 @@ export interface WorldRendererStats {
   meshes: number;
   /** Dont meshes « gemme » (chunks contenant des blocs précieux pleins). */
   gemMeshes: number;
+  /** Dont meshes « eau » (chunks contenant de l'eau visible). */
+  waterMeshes: number;
   /** Durée du dernier rebuildAll(), en ms. */
   lastRebuildMs: number;
   /** Durée du dernier remaillage d'un chunk, en ms (maillage + création géométrie). */
@@ -45,6 +49,7 @@ export class WorldRenderer {
     triangles: 0,
     meshes: 0,
     gemMeshes: 0,
+    waterMeshes: 0,
     lastRebuildMs: 0,
     lastChunkMs: 0,
     avgChunkMs: 0,
@@ -155,7 +160,9 @@ export class WorldRenderer {
    * (le saut de phase, une fois par heure environ, est invisible).
    */
   setTime(seconds: number): void {
-    this.materials.gem.uniforms.uTime.value = seconds % 4096;
+    const t = seconds % 4096;
+    this.materials.gem.uniforms.uTime.value = t;
+    this.materials.water.uniforms.uTime.value = t;
   }
 
   /** Matériaux des chunks (fog = true : un scene.fog s'applique automatiquement). */
@@ -168,6 +175,7 @@ export class WorldRenderer {
       this.disposeMesh(e.opaque);
       this.disposeMesh(e.transparent);
       this.disposeMesh(e.gem);
+      this.disposeMesh(e.water);
     }
     this.chunks.clear();
     this.queue.clear();
@@ -176,6 +184,7 @@ export class WorldRenderer {
     this.stats.triangles = 0;
     this.stats.meshes = 0;
     this.stats.gemMeshes = 0;
+    this.stats.waterMeshes = 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -204,7 +213,7 @@ export class WorldRenderer {
     const data = meshChunk(this.world, cx, cy, cz, this.atlas);
     let e = this.chunks.get(k);
     if (!e) {
-      e = { opaque: null, transparent: null, gem: null, triangles: 0 };
+      e = { opaque: null, transparent: null, gem: null, water: null, triangles: 0 };
       this.chunks.set(k, e);
     }
     this.stats.triangles -= e.triangles;
@@ -212,7 +221,9 @@ export class WorldRenderer {
     e.transparent = this.replace(e.transparent, data.transparent, this.transparentMaterials, cx, cy, cz, 'transparent');
     // Aucun mesh (donc aucun appel de dessin) pour les chunks sans gemme.
     e.gem = this.replace(e.gem, data.gem, this.materials.gem, cx, cy, cz, 'gem');
-    e.triangles = (data.opaque.indices.length + data.transparent.indices.length + data.gem.indices.length) / 3;
+    e.water = this.replace(e.water, data.water, this.materials.water, cx, cy, cz, 'water');
+    e.triangles =
+      (data.opaque.indices.length + data.transparent.indices.length + data.gem.indices.length + data.water.indices.length) / 3;
     this.stats.triangles += e.triangles;
     const dt = performance.now() - t0;
     this.stats.lastChunkMs = dt;
@@ -233,10 +244,11 @@ export class WorldRenderer {
         this.disposeMesh(mesh);
         this.stats.meshes--;
         if (kind === 'gem') this.stats.gemMeshes--;
+        else if (kind === 'water') this.stats.waterMeshes--;
       }
       return null;
     }
-    const geometry = buildGeometry(data, kind === 'transparent', kind === 'gem');
+    const geometry = buildGeometry(data, kind === 'transparent', kind === 'gem' || kind === 'water');
     if (mesh) {
       mesh.geometry.dispose();
       mesh.geometry = geometry;
@@ -251,6 +263,7 @@ export class WorldRenderer {
     this.group.add(m);
     this.stats.meshes++;
     if (kind === 'gem') this.stats.gemMeshes++;
+    else if (kind === 'water') this.stats.waterMeshes++;
     return m;
   }
 

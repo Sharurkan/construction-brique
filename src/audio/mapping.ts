@@ -18,6 +18,7 @@ export const SOUND_GROUPS = [
   'click',
   'select',
   'new_world',
+  'splash',
 ] as const;
 
 export type SoundGroup = (typeof SOUND_GROUPS)[number];
@@ -48,7 +49,7 @@ export function materialOf(id: BlockId | undefined): Material {
     case BlockId.Glass:
       return 'glass';
     default:
-      return 'soft'; // herbe, terre, sable, feuilles, laines… (et bloc inconnu)
+      return 'soft'; // herbe, terre, sable, feuilles, laines, eau… (et bloc inconnu)
   }
 }
 
@@ -95,6 +96,8 @@ export function soundGroupFor(name: SoundName, blockId?: BlockId): SoundGroup {
       return 'select';
     case 'newWorld':
       return 'new_world';
+    case 'splash':
+      return 'splash'; // entrée dans l'eau
   }
 }
 

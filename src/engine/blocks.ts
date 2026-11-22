@@ -63,6 +63,8 @@ export const BLOCKS: Record<BlockId, BlockDef> = {
   [BlockId.SilverOre]: def(BlockId.SilverOre, all('ore_silver'), 0xc8dce0),
   // Bloc PLEIN ajouté après les minerais (ids figés) : tuile recolorée comme or et diamant.
   [BlockId.EmeraldBlock]: def(BlockId.EmeraldBlock, all('emerald_block'), 0x14e07c),
+  // Eau : on passe à travers (solid: false) ; rendue dans sa propre passe (matériau eau animé).
+  [BlockId.Water]: def(BlockId.Water, all('water'), 0x3f9be8, { transparent: true, solid: false }),
 };
 
 /**
@@ -75,6 +77,7 @@ export const PALETTE: BlockId[] = [
   BlockId.Grass,
   BlockId.Dirt,
   BlockId.Sand,
+  BlockId.Water,
   BlockId.Stone,
   BlockId.Cobblestone,
   BlockId.Brick,
@@ -132,6 +135,14 @@ export function isCutout(id: BlockId): boolean {
  */
 export function isGem(id: BlockId): boolean {
   return id === BlockId.Diamond || id === BlockId.Gold || id === BlockId.EmeraldBlock;
+}
+
+/**
+ * Eau : semi-transparente, non solide, dessinée dans une passe à part (matériau eau animé,
+ * voir materials.ts). Pas de face entre deux blocs d'eau ni contre un bloc opaque.
+ */
+export function isWater(id: number): boolean {
+  return id === BlockId.Water;
 }
 
 export function isValidBlockId(id: number): id is BlockId {
