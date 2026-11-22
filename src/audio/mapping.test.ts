@@ -24,7 +24,7 @@ describe('materialOf', () => {
     }
   });
 
-  it('minerais et blocs pleins (or, diamant) → pierre', () => {
+  it('minerais et blocs pleins (or, émeraude, diamant) → pierre', () => {
     for (const id of [
       BlockId.DiamondOre,
       BlockId.GoldOre,
@@ -35,6 +35,7 @@ describe('materialOf', () => {
       BlockId.SilverOre,
       BlockId.Diamond,
       BlockId.Gold,
+      BlockId.EmeraldBlock,
     ]) {
       expect(materialOf(id)).toBe('stone');
       expect(breakGroupFor(id)).toBe('break_stone');

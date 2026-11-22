@@ -197,7 +197,7 @@ function drawPlaceholderTile(key: TileKey, size: number, rand: () => number): An
         else if (shine) [rr, gg, bb, a] = [255, 255, 255, 170];
         else a = 60;
         n = 0;
-      } else if (key === 'diamond_block' || key === 'gold_block') {
+      } else if (key === 'diamond_block' || key === 'gold_block' || key === 'emerald_block') {
         if (x === 0 || y === 0) n += 40;
         else if (x === size - 1 || y === size - 1) n -= 40;
       }

@@ -43,6 +43,7 @@ export function materialOf(id: BlockId | undefined): Material {
     case BlockId.CoalOre:
     case BlockId.IronOre:
     case BlockId.SilverOre:
+    case BlockId.EmeraldBlock:
       return 'stone';
     case BlockId.Glass:
       return 'glass';

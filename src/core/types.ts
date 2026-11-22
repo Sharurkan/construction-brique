@@ -40,6 +40,8 @@ export enum BlockId {
   CoalOre,
   IronOre,
   SilverOre,
+  /** Bloc PLEIN d'émeraude (tuile Kenney recolorée, voir game/atlas.ts). Le minerai = EmeraldOre. */
+  EmeraldBlock,
 }
 
 /** Clé de tuile dans l'atlas (ex. 'grass_top'). L'atlas final viendra du pack choisi en Phase 2. */

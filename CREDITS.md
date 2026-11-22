@@ -51,9 +51,9 @@ Pendant le jeu, les textures sont réduites à 64 × 64 pixels. La texture
 `wool.png` (cotton_tan) est recolorée en 9 couleurs de laine vives (blanc,
 rouge, orange, jaune, vert, bleu, violet, rose, noir).
 
-Blocs pleins d'or et de diamant : le Voxel Pack n'en contient pas. Ils sont
+Blocs pleins d'or, d'émeraude et de diamant : le Voxel Pack n'en contient pas. Ils sont
 obtenus en **recolorant** la texture `glass_frame.png` (cadre biseauté) au
-chargement du jeu, en jaune or et en bleu diamant (simple changement de
+chargement du jeu, en jaune or, en vert émeraude et en bleu diamant (simple changement de
 couleur, rien n'est dessiné en plus). C'est une œuvre dérivée d'un fichier
 CC0, donc CC0 elle aussi. Le fichier `glass_frame.png` est livré tel quel.
 
