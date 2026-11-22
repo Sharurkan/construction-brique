@@ -22,12 +22,20 @@ import { BreakParticles } from './particles';
 import { CreditsPanel, showStartScreen } from './screens';
 import { CREDITS_TEXT } from './credits';
 import { DebugOverlay } from './debug';
+import { PixelRatioAdjuster } from './pixelRatio';
 
 const SKY = 0x7ec8ff;
 /** Portée de la main (blocs). */
 const REACH = 6;
-/** Plafond du pixel ratio (perf tablette). Réglable par `?pr=1` dans l'URL. */
-const DEFAULT_MAX_PIXEL_RATIO = 1.5;
+/**
+ * Plafond du pixel ratio (perf tablette Mali-G52 / Adreno 610). Ajusté ensuite automatiquement
+ * (PixelRatioAdjuster, plancher 0.75) ; `?pr=1` dans l'URL force une valeur fixe.
+ */
+const DEFAULT_MAX_PIXEL_RATIO = 1.25;
+/** Brouillard et distance de vue : monde 96 × 96, du centre au coin ≈ 68 blocs. */
+const FOG_NEAR = 32;
+const FOG_FAR = 90;
+const CAMERA_FAR = 120;
 /** Chunks remaillés par frame : normal / juste après une action du joueur (réponse immédiate). */
 const REMESH_PER_FRAME = 2;
 const REMESH_AFTER_ACTION = 8;
@@ -44,7 +52,7 @@ function randomSeed(): number {
 export async function startGame(app: HTMLElement): Promise<void> {
   const params = new URLSearchParams(location.search);
   const debug = params.has('debug');
-  const maxPixelRatio = Number(params.get('pr')) > 0 ? Number(params.get('pr')) : DEFAULT_MAX_PIXEL_RATIO;
+  const forcedPixelRatio = Number(params.get('pr')) > 0 ? Number(params.get('pr')) : null;
 
   registerPwa();
 
@@ -69,14 +77,18 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
   // ---------- Three.js ----------
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxPixelRatio));
+  // Pixel ratio : forcé par ?pr=, sinon plafonné puis réglé selon le temps moyen d'image.
+  const pixelRatioAdjuster = forcedPixelRatio
+    ? null
+    : new PixelRatioAdjuster({ initial: Math.min(window.devicePixelRatio || 1, DEFAULT_MAX_PIXEL_RATIO) });
+  renderer.setPixelRatio(forcedPixelRatio ?? pixelRatioAdjuster?.value ?? 1);
   renderer.setClearColor(SKY);
   app.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY);
-  scene.fog = new THREE.Fog(SKY, 48, 130);
-  const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 260);
+  scene.fog = new THREE.Fog(SKY, FOG_NEAR, FOG_FAR);
+  const camera = new THREE.PerspectiveCamera(70, 1, 0.05, CAMERA_FAR);
 
   const resize = (): void => {
     const w = Math.max(1, app.clientWidth);
@@ -323,7 +335,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
   const debugOverlay = debug
     ? new DebugOverlay(document.body, renderer, worldRenderer.stats, () => {
         const p = player.state.position;
-        return `\npos        ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}${player.flying ? ' (vol)' : ''}\nseed       ${seed}`;
+        return `\npos        ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}${player.flying ? ' (vol)' : ''}\nseed       ${seed}\npr mode    ${forcedPixelRatio ? 'forcé (?pr)' : 'auto'}`;
       })
     : null;
 
@@ -337,8 +349,12 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
   const frame = (now: number): void => {
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(Math.max((now - last) / 1000, 0), MAX_FRAME_DT);
+    const frameMs = now - last;
+    const dt = Math.min(Math.max(frameMs / 1000, 0), MAX_FRAME_DT);
     last = now;
+    // Pas de mesure pendant un remaillage en cours (démarrage, nouveau monde) : coût passager.
+    const pr = worldRenderer.stats.pending === 0 ? pixelRatioAdjuster?.sample(frameMs) : null;
+    if (pr) renderer.setPixelRatio(pr);
 
     player.update(dt, input.state, world);
     input.consumeLook();
