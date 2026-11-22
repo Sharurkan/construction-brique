@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Démo moteur – Construction Brique</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #7ec8ff; touch-action: none;
+        user-select: none; -webkit-user-select: none; font-family: system-ui, sans-serif; }
+      canvas { display: block; }
+      #hud { position: fixed; top: 8px; left: 8px; padding: 8px 10px; border-radius: 8px;
+        background: rgba(0, 0, 0, 0.55); color: #fff; font: 13px/1.45 ui-monospace, monospace; white-space: pre; pointer-events: none; }
+      #tools { position: fixed; top: 8px; right: 8px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+      #tools button, #tools select { font: 14px system-ui, sans-serif; padding: 6px 10px; border-radius: 8px; border: 0; background: #fff; }
+      #help { position: fixed; bottom: 8px; left: 8px; color: #fff; font-size: 13px; text-shadow: 0 1px 2px #000; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="hud">Chargement…</div>
+    <div id="tools">
+      <select id="block" title="Bloc à poser"></select>
+      <button id="rebuild" type="button">Remailler tout</button>
+      <button id="newworld" type="button">Nouveau monde</button>
+    </div>
+    <div id="help">Glisser : tourner · molette : zoom · clic gauche : casser · clic droit : poser</div>
+    <script type="module" src="./engine-demo.ts"></script>
+  </body>
+</html>
