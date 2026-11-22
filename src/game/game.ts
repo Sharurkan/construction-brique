@@ -215,9 +215,10 @@ export async function startGame(app: HTMLElement): Promise<void> {
       void autosave.flush();
       sfx('newWorld');
     },
-    // Appelé par le bouton vol du HUD (qui met lui-même son affichage à jour).
+    // Appelé par le bouton vol du HUD ; renvoie l'état réel, que le HUD affiche.
     toggleFly() {
       player.toggleFly();
+      return player.flying;
     },
   };
 
