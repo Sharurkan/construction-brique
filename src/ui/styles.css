@@ -19,6 +19,7 @@
   --cb-teal: #14b8a6;
   --cb-slate: #4b5d7a;
   --cb-ink: #1d2433;
+  --cb-pink: #e8459c;
 }
 
 /* Écrans plus petits (ex. 1024×600, téléphones paysage) : boutons un peu réduits mais >= 64 px. */
@@ -63,17 +64,20 @@ html, body {
   margin: 0;
   padding: 0;
   border: 4px solid rgba(255, 255, 255, 0.85);
-  border-radius: 30%;
+  border-radius: 50%;
   background: var(--c);
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%);
   color: #fff;
-  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.28), 0 8px 18px rgba(0, 0, 0, 0.22);
+  /* Contour sombre fin (lisible sur le ciel clair) + ombre douce « bouton jouet ». */
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.22), 0 6px 0 rgba(0, 0, 0, 0.28), 0 8px 18px rgba(0, 0, 0, 0.22);
   cursor: pointer;
   touch-action: none;
   outline: none;
   transition: transform 80ms ease-out, box-shadow 80ms ease-out, filter 80ms ease-out;
 }
-.cb-btn .cb-icon { width: 58%; height: 58%; display: block; }
+.cb-btn .cb-icon { width: 60%; height: 60%; display: block; }
+/* Pictos Kenney blancs : légère ombre portée pour rester lisibles sur les fonds clairs (jaune). */
+.cb-btn .cb-icon img { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.3)); }
 .cb-btn .cb-icon svg, .cb-btn .cb-icon img { width: 100%; height: 100%; display: block; }
 .cb-btn.is-pressed, .cb-btn:active {
   transform: translateY(4px) scale(0.9);
@@ -97,7 +101,7 @@ html, body {
 .cb-btn-jump { --c: var(--cb-blue); width: var(--cb-big); height: var(--cb-big); right: 0; bottom: 0; border-radius: 50%; }
 .cb-btn-place { --c: var(--cb-green); width: var(--cb-action); height: var(--cb-action);
   right: calc(var(--cb-big) + 18px); bottom: calc((var(--cb-big) - var(--cb-action)) / 2); }
-.cb-btn-break { --c: var(--cb-red); width: var(--cb-action); height: var(--cb-action);
+.cb-btn-break { --c: var(--cb-orange); width: var(--cb-action); height: var(--cb-action);
   right: calc((var(--cb-big) - var(--cb-action)) / 2); bottom: calc(var(--cb-big) + 18px); }
 .cb-btn-descend { --c: var(--cb-purple); width: 70px; height: 70px;
   right: calc(var(--cb-big) + 30px); bottom: calc(var(--cb-big) + 30px); border-radius: 50%; }
@@ -165,6 +169,17 @@ html, body {
   box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.3), inset 0 -6px 0 rgba(0, 0, 0, 0.25);
 }
 .cb-slot .cb-swatch canvas { width: 100%; height: 100%; border-radius: 10px; image-rendering: pixelated; }
+/* Vignette réelle (mini-cube isométrique, src/game/blockIcons.ts) : fond neutre au lieu de la
+   couleur de repli, pas de faux relief, et lissage (l'image 128 px est réduite). */
+.cb-slot .cb-swatch[style*='url('],
+.cb-place-swatch[style*='url('] {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+  image-rendering: auto;
+}
+.cb-slot .cb-swatch[style*='url('] { box-shadow: none; }
+.cb-place-swatch[style*='url('] { background-color: #fff !important; background-size: 90%; background-position: center; }
 .cb-slot.is-pressed { transform: scale(0.9); }
 .cb-slot[aria-checked='true'] {
   border: 4px solid #fff;
@@ -209,7 +224,7 @@ html, body {
 .cb-top-right { right: calc(var(--cb-margin) + var(--cb-safe-r)); flex-direction: row-reverse; }
 .cb-top-left { left: calc(var(--cb-margin) + var(--cb-safe-l)); }
 .cb-top-right .cb-btn, .cb-top-left .cb-btn { position: relative; width: var(--cb-small); height: var(--cb-small); }
-.cb-btn-new { --c: var(--cb-orange); width: calc(var(--cb-small) + 12px) !important; height: calc(var(--cb-small) + 12px) !important; border-radius: 50%; }
+.cb-btn-new { --c: var(--cb-pink); background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 50%), linear-gradient(135deg, var(--cb-pink), var(--cb-purple)); width: calc(var(--cb-small) + 12px) !important; height: calc(var(--cb-small) + 12px) !important; border-radius: 50%; }
 .cb-btn-fullscreen { --c: var(--cb-slate); }
 .cb-btn-credits { --c: var(--cb-yellow); }
 .cb-btn-sound { --c: var(--cb-teal); }
@@ -244,11 +259,13 @@ html, body {
   top: calc(100% - var(--cb-margin) - var(--cb-safe-b) - 90px);
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.28));
-  border: 4px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  /* Images Kenney Mobile Controls (variables posées par src/game/uiAssets.ts), dégradé en repli. */
+  background: var(--cb-joy-base-img, none) center / 100% 100% no-repeat,
+    radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.28));
+  border: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6), 0 4px 14px rgba(0, 0, 0, 0.25);
   pointer-events: none;
-  opacity: 0.35;
+  opacity: 0.45;
   z-index: 5;
   transition: opacity 120ms;
 }
@@ -260,8 +277,8 @@ html, body {
   width: 44%;
   height: 44%;
   border-radius: 50%;
-  background: #fff;
-  background-image: radial-gradient(circle at 35% 30%, #fff, #d9e6ff);
+  background: var(--cb-joy-knob-img, none) center / 100% 100% no-repeat,
+    radial-gradient(circle at 35% 30%, #fff, #d9e6ff);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
   transform: translate(-50%, -50%);
 }
