@@ -13,7 +13,10 @@ import { createAutosave } from '../platform/autosave';
 import { registerPwa, requestFullscreenAndLandscape, requestPersistentStorage } from '../platform/pwa';
 import { WebAudioSoundPlayer } from '../audio/sound';
 import type { SoundName } from '../core/types';
-import { loadAtlas } from './atlas';
+import { loadBlockTextures } from './atlas';
+import { renderBlockIcon } from './blockIcons';
+import { applyUiAssets } from './uiAssets';
+import { SOUNDS } from '../assets/manifest';
 import { BlockHighlight } from './highlight';
 import { BreakParticles } from './particles';
 import { CreditsPanel, showStartScreen } from './screens';
@@ -45,9 +48,10 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
   registerPwa();
 
-  // Sons : la map de sources viendra de `src/assets/manifest.ts` (export SOUNDS, Agent F),
-  // ex. `new WebAudioSoundPlayer(SOUNDS)`. Vide pour l'instant → silence.
-  const sound = new WebAudioSoundPlayer({});
+  // Sons Kenney (manifeste) : téléchargés et décodés seulement après le premier geste.
+  const sound = new WebAudioSoundPlayer(SOUNDS);
+  // Icônes Kenney du HUD, images du joystick, police des crédits.
+  applyUiAssets();
 
   // ---------- Premier geste utilisateur (une seule fois) ----------
   let gestured = false;
@@ -86,7 +90,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
   resize();
 
   // ---------- Monde (sauvegarde ou nouvelle génération) ----------
-  const [atlas, store] = await Promise.all([loadAtlas(), createSaveStore()]);
+  const [{ atlas, tiles }, store] = await Promise.all([loadBlockTextures(debug), createSaveStore()]);
   const saved = await store.load().catch(() => null);
   const world = new World();
   let seed = randomSeed();
@@ -245,8 +249,14 @@ export async function startGame(app: HTMLElement): Promise<void> {
     },
     onButtonPress: buttonClick,
   });
-  // Icônes définitives : `setIcons({...})` depuis '../ui/icons' (le HUD se met à jour seul),
-  // et `hud.setBlockIcon(id, url)` pour les vignettes de la palette.
+  // Vignettes de la palette (mini-cubes avec les vraies tuiles) ; le HUD les reprend aussi
+  // sur la pastille du bouton POSER.
+  if (tiles) {
+    for (const id of PALETTE) {
+      const icon = renderBlockIcon(id, tiles);
+      if (icon) hud.setBlockIcon(id, icon);
+    }
+  }
 
   const debugOverlay = debug
     ? new DebugOverlay(document.body, renderer, worldRenderer.stats, () => {

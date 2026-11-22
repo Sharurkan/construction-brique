@@ -63,6 +63,12 @@ function renderCredits(text: string): DocumentFragment {
       frag.appendChild(el);
     } else if (line.trim() === '') {
       flush();
+    } else if (/^\s*\|[\s:|-]+\|\s*$/.test(line)) {
+      // Ligne de séparation d'un tableau Markdown : ignorée.
+    } else if (/^\s*\|.*\|\s*$/.test(line)) {
+      // Ligne de tableau : « cellule 1 ← cellule 2 ».
+      const cells = line.trim().slice(1, -1).split('|').map((c) => c.trim());
+      para.push(cells.join(' ← '));
     } else {
       para.push(line.replace(/^\s*[-*]\s+/, '• '));
     }

@@ -47,6 +47,16 @@ Dossier `textures/` (PNG 128 × 128, depuis `PNG/Tiles/`) :
 
 Dossier `icons/` : `btn_break.png` ← `PNG/Items/pick_diamond.png`.
 
+Dans le jeu, les tuiles sont réduites à 64 × 64 et la tuile `wool.png`
+(cotton_tan) est recolorée en 9 couleurs de laine vives (blanc, rouge, orange,
+jaune, vert, bleu, violet, rose, noir). Les vignettes de la palette sont de
+petits cubes dessinés avec ces mêmes tuiles.
+
+Icône de l'application (`public/icons/*.png`, `public/favicon.png`) : cube
+isométrique dessiné avec `grass_top.png` et `dirt_grass.png` (grass_side) du
+Voxel Pack, sur fond bleu ciel (œuvre dérivée, CC0 également ; générée par
+`src/platform/tools/make-icons.mjs`).
+
 ### Mobile Controls — joystick et icônes de boutons
 
 Source : https://kenney.nl/assets/mobile-controls
