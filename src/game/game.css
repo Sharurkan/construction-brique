@@ -52,7 +52,8 @@
 }
 .cb-credits[hidden] { display: none; }
 .cb-credits-box {
-  width: min(760px, calc(100vw - 32px - 120px));
+  /* Réserve la place du bouton fermer (88 px + marge 16 px) des DEUX côtés pour rester centré. */
+  width: min(760px, calc(100vw - 2 * (88px + 16px)));
   max-height: calc(100vh - 48px);
   overflow-y: auto;
   overscroll-behavior: contain;
