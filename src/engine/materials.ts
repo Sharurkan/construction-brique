@@ -8,7 +8,7 @@
  * de la tuile au sein de l'atlas.
  *
  * Pourquoi pas une DataArrayTexture (WebGL2) ?
- * - le contrat `TextureAtlas` (une texture + tileUV) reste valable pour l'UI (icônes de la
+ * - le contrat `TextureAtlas` (une texture + index de tuiles) reste valable pour l'UI (icônes de la
  *   palette, particules) et pour assembler un pack de PNG en Phase 2 sans autre format ;
  * - une seule texture 2D, un seul échantillonneur : le plus portable et le moins coûteux
  *   sur GPU mobile d'entrée de gamme ;
@@ -75,7 +75,6 @@ export interface ChunkMaterials {
   cutout: THREE.ShaderMaterial;
   /** Verre : mélange alpha, n'écrit pas la profondeur. */
   blend: THREE.ShaderMaterial;
-  setAtlas(atlas: TextureAtlas): void;
   dispose(): void;
 }
 
@@ -115,14 +114,6 @@ export function createChunkMaterials(atlas: TextureAtlas): ChunkMaterials {
     opaque,
     cutout,
     blend,
-    setAtlas(a) {
-      shared.uMap.value = a.texture;
-      shared.uAtlasSize.value.set(a.width, a.height);
-      shared.uCell.value = a.tileSize + 2 * a.padding;
-      shared.uPad.value = a.padding;
-      shared.uTileSize.value = a.tileSize;
-      shared.uTilesPerRow.value = a.tilesPerRow;
-    },
     dispose() {
       opaque.dispose();
       cutout.dispose();

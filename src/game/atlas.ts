@@ -224,8 +224,3 @@ export async function loadBlockTextures(debug = false): Promise<BlockTextures> {
     return { atlas: createPlaceholderAtlas(), tiles: null };
   }
 }
-
-/** Compatibilité : seulement l'atlas. */
-export async function loadAtlas(): Promise<TextureAtlas> {
-  return (await loadBlockTextures()).atlas;
-}

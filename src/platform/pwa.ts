@@ -82,22 +82,6 @@ export async function requestFullscreenAndLandscape(el?: HTMLElement): Promise<b
   return !!(doc.fullscreenElement ?? doc.webkitFullscreenElement);
 }
 
-/** Vrai si le jeu tourne comme application installée (écran d'accueil). */
-export function isStandalone(): boolean {
-  try {
-    if (typeof window === 'undefined') return false;
-    const mm = (q: string) => window.matchMedia?.(q).matches ?? false;
-    return (
-      mm('(display-mode: fullscreen)') ||
-      mm('(display-mode: standalone)') ||
-      mm('(display-mode: minimal-ui)') ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true
-    );
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Demande un stockage persistant pour que le navigateur n'efface pas la sauvegarde
  * en cas de manque d'espace. Résout `true` si accordé (ou déjà accordé).
