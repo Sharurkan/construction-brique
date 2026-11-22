@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BlockId, WORLD_SIZE_X, WORLD_SIZE_Y, WORLD_SIZE_Z } from '../core/types';
-import { BLOCKS, PALETTE } from './blocks';
+import { BLOCKS, BLOCK_COUNT, PALETTE, isValidBlockId } from './blocks';
 import { World } from './world';
 
 const sortKeys = (a: Array<[number, number, number]>) => a.map((c) => c.join(',')).sort();
@@ -16,6 +16,52 @@ describe('blocs', () => {
     expect(PALETTE).not.toContain(BlockId.Air);
     for (const id of PALETTE) expect(BLOCKS[id].inPalette).toBe(true);
     expect(new Set(PALETTE).size).toBe(PALETTE.length);
+  });
+
+  it('ids stables (sauvegardes) : anciens numéros inchangés, minerais ajoutés à la fin', () => {
+    // Ne JAMAIS changer ces valeurs : elles sont stockées dans les mondes sauvegardés.
+    expect(BlockId.Sand).toBe(10);
+    expect(BlockId.Diamond).toBe(11);
+    expect(BlockId.Gold).toBe(12);
+    expect(BlockId.WoolBlack).toBe(21);
+    expect(BlockId.Bedrock).toBe(22);
+    expect([
+      BlockId.DiamondOre,
+      BlockId.GoldOre,
+      BlockId.EmeraldOre,
+      BlockId.RubyOre,
+      BlockId.CoalOre,
+      BlockId.IronOre,
+      BlockId.SilverOre,
+    ]).toEqual([23, 24, 25, 26, 27, 28, 29]);
+    expect(BLOCK_COUNT).toBe(30);
+  });
+
+  it('minerais et blocs pleins : dans la palette, opaques, solides, cassables, tuiles distinctes', () => {
+    const ores: Array<[BlockId, string]> = [
+      [BlockId.DiamondOre, 'ore_diamond'],
+      [BlockId.GoldOre, 'ore_gold'],
+      [BlockId.EmeraldOre, 'ore_emerald'],
+      [BlockId.RubyOre, 'ore_ruby'],
+      [BlockId.CoalOre, 'ore_coal'],
+      [BlockId.IronOre, 'ore_iron'],
+      [BlockId.SilverOre, 'ore_silver'],
+      [BlockId.Diamond, 'diamond_block'],
+      [BlockId.Gold, 'gold_block'],
+    ];
+    for (const [id, tile] of ores) {
+      const b = BLOCKS[id];
+      expect(b.id).toBe(id);
+      expect(b.tiles).toEqual({ top: tile, side: tile, bottom: tile });
+      expect(b.transparent).toBe(false);
+      expect(b.solid).toBe(true);
+      expect(b.breakable).toBe(true);
+      expect(PALETTE).toContain(id);
+      expect(isValidBlockId(id)).toBe(true);
+    }
+    // Les blocs pleins or et diamant terminent la palette.
+    expect(PALETTE.slice(-2)).toEqual([BlockId.Gold, BlockId.Diamond]);
+    expect(isValidBlockId(BLOCK_COUNT)).toBe(false);
   });
 });
 
@@ -112,5 +158,19 @@ describe('World', () => {
     expect(w2.getBlock(0, 0, 0)).toBe(BlockId.Brick);
     expect(w2.takeDirtyChunks().length).toBe(6 * 3 * 6);
     expect(() => w2.load(new Uint8Array(10))).toThrow();
+  });
+
+  it('pose et recharge les minerais ; un id inconnu (futur) devient Air', () => {
+    const w = new World();
+    expect(w.setBlock(1, 5, 1, BlockId.RubyOre)).toBe(true);
+    expect(w.setBlock(2, 5, 1, BlockId.SilverOre)).toBe(true);
+    const bytes = w.serialize();
+    bytes[3] = BLOCK_COUNT; // id d'une version future
+    const w2 = new World();
+    w2.load(bytes);
+    expect(w2.getBlock(1, 5, 1)).toBe(BlockId.RubyOre);
+    expect(w2.getBlock(2, 5, 1)).toBe(BlockId.SilverOre);
+    expect(w2.getBlock(3, 0, 0)).toBe(BlockId.Air);
+    expect(w2.setBlock(4, 5, 1, BLOCK_COUNT as BlockId)).toBe(false);
   });
 });

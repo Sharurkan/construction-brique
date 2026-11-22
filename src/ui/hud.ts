@@ -29,8 +29,8 @@ export const BLOCK_LABELS_FR: Readonly<Record<BlockId, string>> = {
   [BlockId.Brick]: 'Briques',
   [BlockId.Glass]: 'Verre',
   [BlockId.Sand]: 'Sable',
-  [BlockId.Diamond]: 'Diamant',
-  [BlockId.Gold]: 'Or',
+  [BlockId.Diamond]: 'Bloc de diamant',
+  [BlockId.Gold]: "Bloc d'or",
   [BlockId.WoolWhite]: 'Laine blanche',
   [BlockId.WoolRed]: 'Laine rouge',
   [BlockId.WoolOrange]: 'Laine orange',
@@ -41,6 +41,13 @@ export const BLOCK_LABELS_FR: Readonly<Record<BlockId, string>> = {
   [BlockId.WoolPink]: 'Laine rose',
   [BlockId.WoolBlack]: 'Laine noire',
   [BlockId.Bedrock]: 'Socle',
+  [BlockId.DiamondOre]: 'Minerai de diamant',
+  [BlockId.GoldOre]: "Minerai d'or",
+  [BlockId.EmeraldOre]: "Minerai d'émeraude",
+  [BlockId.RubyOre]: 'Minerai de rubis',
+  [BlockId.CoalOre]: 'Minerai de charbon',
+  [BlockId.IronOre]: 'Minerai de fer',
+  [BlockId.SilverOre]: "Minerai d'argent",
 };
 
 export interface HudOptions {

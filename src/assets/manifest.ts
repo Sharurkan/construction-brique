@@ -22,8 +22,14 @@ export const TEXTURE_TILE_KEYS = [
   'brick',
   'glass', // transparente (alpha)
   'sand',
-  'diamond',
-  'gold',
+  // Minerais (pierre avec éclats) :
+  'ore_diamond',
+  'ore_gold',
+  'ore_emerald',
+  'ore_ruby',
+  'ore_coal',
+  'ore_iron',
+  'ore_silver',
   'wool', // tuile claire neutre (cotton_tan) à teinter avec WOOL_TINTS
   'bedrock',
   // Laines natives du pack (couleurs douces, non vives) :
@@ -35,6 +41,7 @@ export const TEXTURE_TILE_KEYS = [
   'planks_red',
   'snow',
   'ice',
+  'glass_frame', // base des blocs pleins d'or et de diamant (recolorée, voir GEM_BLOCK_TILES)
 ] as const;
 
 export type TextureTileKey = (typeof TEXTURE_TILE_KEYS)[number];
@@ -103,6 +110,16 @@ export const WOOL_TINTS: Record<string, number> = {
   purple: 0x8e24aa,
   pink: 0xf06292,
   black: 0x3a3a3a,
+};
+
+/**
+ * Blocs PLEINS d'or et de diamant : le Voxel Pack n'en a pas. Ils sont obtenus en RECOLORANT
+ * une tuile lisse du pack (transformation de couleur seule, au chargement : voir
+ * `recolorGem` dans src/game/atlas.ts). Clé de tuile de BLOCKS → tuile de base + couleur cible.
+ */
+export const GEM_BLOCK_TILES: Record<string, { base: TextureTileKey; color: number }> = {
+  diamond_block: { base: 'glass_frame', color: 0x22d3f0 },
+  gold_block: { base: 'glass_frame', color: 0xffc414 },
 };
 
 /**

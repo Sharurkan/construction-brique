@@ -40,8 +40,9 @@ export const BLOCKS: Record<BlockId, BlockDef> = {
   [BlockId.Brick]: def(BlockId.Brick, all('brick'), 0xb5482f),
   [BlockId.Glass]: def(BlockId.Glass, all('glass'), 0xbfe8ff, { transparent: true }),
   [BlockId.Sand]: def(BlockId.Sand, all('sand'), 0xe8d68f),
-  [BlockId.Diamond]: def(BlockId.Diamond, all('diamond_block'), 0x5fe3e0),
-  [BlockId.Gold]: def(BlockId.Gold, all('gold_block'), 0xf5c518),
+  // Blocs PLEINS : tuiles recolorées au chargement (game/atlas.ts, GEM_BLOCK_TILES).
+  [BlockId.Diamond]: def(BlockId.Diamond, all('diamond_block'), 0x2fd6f0),
+  [BlockId.Gold]: def(BlockId.Gold, all('gold_block'), 0xffc81a),
   [BlockId.WoolWhite]: def(BlockId.WoolWhite, all('wool_white'), 0xf4f4f4),
   [BlockId.WoolRed]: def(BlockId.WoolRed, all('wool_red'), 0xe03a3a),
   [BlockId.WoolOrange]: def(BlockId.WoolOrange, all('wool_orange'), 0xf58a1f),
@@ -52,11 +53,20 @@ export const BLOCKS: Record<BlockId, BlockDef> = {
   [BlockId.WoolPink]: def(BlockId.WoolPink, all('wool_pink'), 0xf39ac2),
   [BlockId.WoolBlack]: def(BlockId.WoolBlack, all('wool_black'), 0x2a2a2a),
   [BlockId.Bedrock]: def(BlockId.Bedrock, all('bedrock'), 0x3a3a3a, { breakable: false, inPalette: false }),
+  // Minerais (pierre + éclats). Couleur = celle des éclats (vignette de secours, particules).
+  [BlockId.DiamondOre]: def(BlockId.DiamondOre, all('ore_diamond'), 0x5ac8f0),
+  [BlockId.GoldOre]: def(BlockId.GoldOre, all('ore_gold'), 0xf0c040),
+  [BlockId.EmeraldOre]: def(BlockId.EmeraldOre, all('ore_emerald'), 0x2fc86a),
+  [BlockId.RubyOre]: def(BlockId.RubyOre, all('ore_ruby'), 0xe8403c),
+  [BlockId.CoalOre]: def(BlockId.CoalOre, all('ore_coal'), 0x4a4a4e),
+  [BlockId.IronOre]: def(BlockId.IronOre, all('ore_iron'), 0x3cb8a0),
+  [BlockId.SilverOre]: def(BlockId.SilverOre, all('ore_silver'), 0xc8dce0),
 };
 
 /**
  * Ordre de la palette : nature d'abord (ce qu'on voit autour de soi), puis construction,
- * puis les laines dans l'ordre de l'arc-en-ciel, et les « trésors » à la fin.
+ * puis les laines dans l'ordre de l'arc-en-ciel, puis les minerais (du plus commun au plus
+ * précieux) et les « trésors » à la fin : blocs pleins d'or et de diamant.
  */
 export const PALETTE: BlockId[] = [
   BlockId.Grass,
@@ -78,6 +88,13 @@ export const PALETTE: BlockId[] = [
   BlockId.WoolPink,
   BlockId.WoolWhite,
   BlockId.WoolBlack,
+  BlockId.CoalOre,
+  BlockId.IronOre,
+  BlockId.SilverOre,
+  BlockId.GoldOre,
+  BlockId.RubyOre,
+  BlockId.EmeraldOre,
+  BlockId.DiamondOre,
   BlockId.Gold,
   BlockId.Diamond,
 ];

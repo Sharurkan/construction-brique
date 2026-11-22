@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { nextFlyingState } from './hud';
+import { BlockId } from '../core/types';
+import { PALETTE } from '../engine/blocks';
+import { BLOCK_LABELS_FR, nextFlyingState } from './hud';
 
 describe('nextFlyingState (bouton vol)', () => {
   it('toggleFly renvoie un booléen : reflète l’état réel', () => {
@@ -24,5 +26,15 @@ describe('nextFlyingState (bouton vol)', () => {
     expect(nextFlyingState(1, false, false)).toBe(true);
     expect(nextFlyingState('oui', true, true)).toBe(false);
     expect(nextFlyingState(null, false, false)).toBe(true);
+  });
+});
+
+describe('BLOCK_LABELS_FR', () => {
+  it('chaque bloc de la palette a un libellé unique et non vide', () => {
+    const labels = PALETTE.map((id) => BLOCK_LABELS_FR[id]);
+    for (const l of labels) expect(l?.length ?? 0).toBeGreaterThan(0);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(BLOCK_LABELS_FR[BlockId.Diamond]).toBe('Bloc de diamant');
+    expect(BLOCK_LABELS_FR[BlockId.DiamondOre]).toBe('Minerai de diamant');
   });
 });

@@ -33,8 +33,13 @@ Dossier `textures/` (PNG 128 × 128, depuis `PNG/Tiles/`) :
 | brick.png | brick_red.png |
 | glass.png | glass.png |
 | sand.png | sand.png |
-| diamond.png | stone_diamond.png |
-| gold.png | stone_gold.png |
+| ore_diamond.png | stone_diamond.png |
+| ore_gold.png | stone_gold.png |
+| ore_emerald.png | redstone_emerald.png |
+| ore_ruby.png | greystone_ruby.png |
+| ore_coal.png | stone_coal.png |
+| ore_iron.png | stone_iron.png |
+| ore_silver.png | stone_silver.png |
 | wool.png | cotton_tan.png |
 | bedrock.png | greystone.png |
 | wool_red.png | cotton_red.png |
@@ -44,12 +49,21 @@ Dossier `textures/` (PNG 128 × 128, depuis `PNG/Tiles/`) :
 | planks_red.png | wood_red.png |
 | snow.png | snow.png |
 | ice.png | ice.png |
+| glass_frame.png | glass_frame.png |
 
 Dossier `icons/` : `btn_break.png` ← `PNG/Items/pick_diamond.png`.
 
 Dans le jeu, les tuiles sont réduites à 64 × 64 et la tuile `wool.png`
 (cotton_tan) est recolorée en 9 couleurs de laine vives (blanc, rouge, orange,
-jaune, vert, bleu, violet, rose, noir). Les vignettes de la palette sont de
+jaune, vert, bleu, violet, rose, noir).
+
+Blocs pleins d'or et de diamant : le Voxel Pack n'en contient pas. Ils sont
+obtenus en **recolorant** la tuile Kenney `glass_frame.png` (cadre biseauté) au
+chargement du jeu, en jaune or et en bleu diamant opaques (transformation de
+couleur seule, rien n'est dessiné en plus ; voir `recolorGem` dans
+`src/game/atlas.ts` et `GEM_BLOCK_TILES` dans `src/assets/manifest.ts`). Œuvre
+dérivée d'une tuile CC0, donc CC0 également. Le fichier `glass_frame.png` est
+livré tel quel. Les vignettes de la palette sont de
 petits cubes dessinés avec ces mêmes tuiles.
 
 Icône de l'application (`public/icons/*.png`, `public/favicon.png`) : cube
