@@ -125,6 +125,15 @@ export function isCutout(id: BlockId): boolean {
   return id === BlockId.Leaves;
 }
 
+/**
+ * Blocs précieux PLEINS (diamant, or, émeraude) : opaques, mais dessinés dans une passe à part
+ * avec le matériau « gemme » (reflet + étincelles, voir materials.ts). Les minerais n'en font
+ * pas partie (pierre avec éclats : matériau opaque normal).
+ */
+export function isGem(id: BlockId): boolean {
+  return id === BlockId.Diamond || id === BlockId.Gold || id === BlockId.EmeraldBlock;
+}
+
 export function isValidBlockId(id: number): id is BlockId {
   return Number.isInteger(id) && id >= 0 && id < BLOCK_COUNT;
 }

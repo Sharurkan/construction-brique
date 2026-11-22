@@ -8,14 +8,21 @@ import type { World } from './world';
 interface ChunkEntry {
   opaque: THREE.Mesh | null;
   transparent: THREE.Mesh | null;
+  /** Blocs précieux pleins (matériau gemme) : créé seulement si le chunk en contient. */
+  gem: THREE.Mesh | null;
   triangles: number;
 }
+
+/** Passe d'un mesh de chunk (nom, groupes de matériaux, attribut de face). */
+type MeshKind = 'opaque' | 'transparent' | 'gem';
 
 export interface WorldRendererStats {
   /** Triangles actuellement affichables (tous chunks). */
   triangles: number;
-  /** Nombre de meshes (≈ appels de dessin max). */
+  /** Nombre de meshes (≈ appels de dessin max), meshes gemmes compris. */
   meshes: number;
+  /** Dont meshes « gemme » (chunks contenant des blocs précieux pleins). */
+  gemMeshes: number;
   /** Durée du dernier rebuildAll(), en ms. */
   lastRebuildMs: number;
   /** Durée du dernier remaillage d'un chunk, en ms (maillage + création géométrie). */
@@ -27,7 +34,8 @@ export interface WorldRendererStats {
 }
 
 /**
- * Affiche un monde voxel : un Mesh opaque et un Mesh transparent (feuilles + verre) par chunk.
+ * Affiche un monde voxel : un Mesh opaque et un Mesh transparent (feuilles + verre) par chunk,
+ * plus un Mesh « gemme » (blocs précieux pleins) dans les seuls chunks qui en contiennent.
  * Les chunks sales sont remaillés progressivement par update().
  */
 export class WorldRenderer {
@@ -36,6 +44,7 @@ export class WorldRenderer {
   readonly stats: WorldRendererStats = {
     triangles: 0,
     meshes: 0,
+    gemMeshes: 0,
     lastRebuildMs: 0,
     lastChunkMs: 0,
     avgChunkMs: 0,
@@ -140,6 +149,15 @@ export class WorldRenderer {
     return n;
   }
 
+  /**
+   * Temps (secondes) des effets animés du matériau gemme (étincelles). À appeler chaque frame.
+   * Ramené dans [0, 4096) : la précision du sinus reste bonne même après des heures de jeu
+   * (le saut de phase, une fois par heure environ, est invisible).
+   */
+  setTime(seconds: number): void {
+    this.materials.gem.uniforms.uTime.value = seconds % 4096;
+  }
+
   /** Matériaux des chunks (fog = true : un scene.fog s'applique automatiquement). */
   get chunkMaterials(): Readonly<ChunkMaterials> {
     return this.materials;
@@ -149,6 +167,7 @@ export class WorldRenderer {
     for (const e of this.chunks.values()) {
       this.disposeMesh(e.opaque);
       this.disposeMesh(e.transparent);
+      this.disposeMesh(e.gem);
     }
     this.chunks.clear();
     this.queue.clear();
@@ -156,6 +175,7 @@ export class WorldRenderer {
     this.scene.remove(this.group);
     this.stats.triangles = 0;
     this.stats.meshes = 0;
+    this.stats.gemMeshes = 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -184,13 +204,15 @@ export class WorldRenderer {
     const data = meshChunk(this.world, cx, cy, cz, this.atlas);
     let e = this.chunks.get(k);
     if (!e) {
-      e = { opaque: null, transparent: null, triangles: 0 };
+      e = { opaque: null, transparent: null, gem: null, triangles: 0 };
       this.chunks.set(k, e);
     }
     this.stats.triangles -= e.triangles;
-    e.opaque = this.replace(e.opaque, data.opaque, this.materials.opaque, cx, cy, cz, false);
-    e.transparent = this.replace(e.transparent, data.transparent, this.transparentMaterials, cx, cy, cz, true);
-    e.triangles = (data.opaque.indices.length + data.transparent.indices.length) / 3;
+    e.opaque = this.replace(e.opaque, data.opaque, this.materials.opaque, cx, cy, cz, 'opaque');
+    e.transparent = this.replace(e.transparent, data.transparent, this.transparentMaterials, cx, cy, cz, 'transparent');
+    // Aucun mesh (donc aucun appel de dessin) pour les chunks sans gemme.
+    e.gem = this.replace(e.gem, data.gem, this.materials.gem, cx, cy, cz, 'gem');
+    e.triangles = (data.opaque.indices.length + data.transparent.indices.length + data.gem.indices.length) / 3;
     this.stats.triangles += e.triangles;
     const dt = performance.now() - t0;
     this.stats.lastChunkMs = dt;
@@ -204,29 +226,31 @@ export class WorldRenderer {
     cx: number,
     cy: number,
     cz: number,
-    transparent: boolean,
+    kind: MeshKind,
   ): THREE.Mesh | null {
     if (data.quadCount === 0) {
       if (mesh) {
         this.disposeMesh(mesh);
         this.stats.meshes--;
+        if (kind === 'gem') this.stats.gemMeshes--;
       }
       return null;
     }
-    const geometry = buildGeometry(data, transparent);
+    const geometry = buildGeometry(data, kind === 'transparent', kind === 'gem');
     if (mesh) {
       mesh.geometry.dispose();
       mesh.geometry = geometry;
       return mesh;
     }
     const m = new THREE.Mesh(geometry, material);
-    m.name = `chunk ${cx},${cy},${cz}${transparent ? ' (transparent)' : ''}`;
+    m.name = `chunk ${cx},${cy},${cz}${kind === 'opaque' ? '' : ` (${kind})`}`;
     m.position.set(cx * CHUNK_SIZE, cy * CHUNK_SIZE, cz * CHUNK_SIZE);
     m.matrixAutoUpdate = false;
     m.updateMatrix();
     m.frustumCulled = true;
     this.group.add(m);
     this.stats.meshes++;
+    if (kind === 'gem') this.stats.gemMeshes++;
     return m;
   }
 
@@ -237,13 +261,18 @@ export class WorldRenderer {
   }
 }
 
-/** Convertit un MeshData en BufferGeometry (bounding sphere calculée pour le frustum culling). */
-export function buildGeometry(data: MeshData, withGroups: boolean): THREE.BufferGeometry {
+/**
+ * Convertit un MeshData en BufferGeometry (bounding sphere calculée pour le frustum culling).
+ * `withFaces` : ajoute l'attribut `face` (orientation 0..5, 1 octet par sommet), utile au seul
+ * matériau gemme (normale pour le reflet) ; les autres passes ne l'envoient pas au GPU.
+ */
+export function buildGeometry(data: MeshData, withGroups: boolean, withFaces = false): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
   g.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2));
   g.setAttribute('tile', new THREE.BufferAttribute(data.tiles, 1));
   g.setAttribute('shade', new THREE.BufferAttribute(data.shades, 1, true));
+  if (withFaces) g.setAttribute('face', new THREE.BufferAttribute(data.faces, 1));
   g.setIndex(new THREE.BufferAttribute(data.indices, 1));
   if (withGroups) {
     const total = data.indices.length;
