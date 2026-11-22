@@ -454,8 +454,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
   if (!document.hidden) start();
 
-  // Accès console (débogage, tests navigateur).
-  Object.assign(window, {
+  // Accès console (débogage, tests navigateur) : seulement avec ?debug ou en développement.
+  if (debug || import.meta.env.DEV) Object.assign(window, {
     __game: { world, player, hud, input, actions, autosave, store, sound, renderer, worldRenderer, scene, camera, credits, get seed() { return seed; }, get selected() { return selected; } },
   });
 }
