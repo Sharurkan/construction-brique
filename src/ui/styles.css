@@ -8,8 +8,8 @@
   --cb-margin: 16px;
   --cb-big: 100px;     /* SAUTER */
   --cb-action: 92px;   /* CASSER / POSER */
-  --cb-small: 60px;    /* boutons du haut */
-  --cb-slot: 58px;     /* palette */
+  --cb-small: 64px;    /* boutons du haut (>= 64 px) */
+  --cb-slot: 64px;     /* palette */
   --cb-red: #ff4f5a;
   --cb-green: #2fc65a;
   --cb-blue: #3a8dff;
@@ -23,10 +23,10 @@
 
 /* Écrans plus petits (ex. 1024×600, téléphones paysage) : boutons un peu réduits mais >= 64 px. */
 @media (max-height: 640px) {
-  :root { --cb-big: 92px; --cb-action: 84px; --cb-small: 56px; --cb-slot: 54px; --cb-margin: 12px; }
+  :root { --cb-big: 92px; --cb-action: 86px; --cb-small: 64px; --cb-slot: 60px; --cb-margin: 12px; }
 }
 @media (max-height: 420px) {
-  :root { --cb-big: 76px; --cb-action: 70px; --cb-small: 48px; --cb-slot: 48px; --cb-margin: 8px; }
+  :root { --cb-big: 76px; --cb-action: 70px; --cb-small: 54px; --cb-slot: 52px; --cb-margin: 8px; }
 }
 
 html, body {
