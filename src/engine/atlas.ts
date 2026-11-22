@@ -7,11 +7,9 @@ import { ALL_TILE_KEYS, BLOCKS } from './blocks';
  * Chaque cellule = tuile + `padding` pixels d'extrusion de ses bords (anti-bleeding).
  *
  * Convention UV : la texture est créée avec flipY = false, donc v = 0 est le HAUT de l'image.
- * `tileUV` renvoie la zone utile (sans padding) dans cette convention.
  */
 export interface TextureAtlas {
   texture: THREE.Texture;
-  tileUV(key: TileKey): { u0: number; v0: number; u1: number; v1: number };
   /** Index de la tuile (0 = tuile « manquante » magenta si la clé est inconnue). */
   tileIndex(key: TileKey): number;
   tilesPerRow: number;
@@ -132,12 +130,6 @@ export function createAtlasFromImages(
     height,
     tileIndex(key) {
       return indexOf.get(key) ?? 0;
-    },
-    tileUV(key) {
-      const i = indexOf.get(key) ?? 0;
-      const x = (i % tilesPerRow) * cell + padding;
-      const y = Math.floor(i / tilesPerRow) * cell + padding;
-      return { u0: x / width, v0: y / height, u1: (x + tileSize) / width, v1: (y + tileSize) / height };
     },
   };
 }

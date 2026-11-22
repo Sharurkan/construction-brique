@@ -5,6 +5,8 @@ const svg = (body: string): string =>
   `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${body}</svg>`;
 
 const PLAY_ICON = svg('<path d="M17 10 L39 24 L17 38 Z" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>');
+/** Flèche « retour » (annuler). */
+const UNDO_ICON = svg('<path d="M18 10 L8 20 L18 30 M9 20 H29 A10 10 0 0 1 29 40 H22" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>');
 const CLOSE_ICON = svg('<path d="M12 12 L36 36 M36 12 L12 36" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>');
 
 /**
@@ -12,7 +14,15 @@ const CLOSE_ICON = svg('<path d="M12 12 L36 36 M36 12 L12 36" fill="none" stroke
  * Le clic sert de geste utilisateur (plein écran, déverrouillage audio).
  * `onPlay` est appelé une seule fois, puis l'écran disparaît en fondu.
  */
+let startScreenVisible = false;
+
+/** Vrai tant que l'écran de démarrage attend l'appui sur « jouer » (on peut alors recharger la page sans gêner). */
+export function isStartScreenVisible(): boolean {
+  return startScreenVisible;
+}
+
 export function showStartScreen(parent: HTMLElement, onPlay: () => void): HTMLElement {
+  startScreenVisible = true;
   const screen = document.createElement('div');
   screen.className = 'cb-start';
   screen.setAttribute(NO_LOOK_ATTR, '');
@@ -29,6 +39,7 @@ export function showStartScreen(parent: HTMLElement, onPlay: () => void): HTMLEl
     e.stopPropagation();
     if (done) return;
     done = true;
+    startScreenVisible = false;
     onPlay();
     screen.classList.add('is-leaving');
     window.setTimeout(() => screen.remove(), 350);
@@ -77,11 +88,38 @@ function renderCredits(text: string): DocumentFragment {
   return frag;
 }
 
+export interface CreditsPanelOptions {
+  onClose?: () => void;
+  /** Bouton « Restaurer le monde précédent » (zone parents) ; masqué tant que `setRestoreAvailable(true)` n'est pas appelé. */
+  onRestorePrevious?: () => void;
+}
+
+/** Tablette barrée : WebGL indisponible (aucun texte, l'enfant ne lit pas forcément). */
+const NO_WEBGL_ICON =
+  '<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<rect x="18" y="12" width="60" height="72" rx="8" fill="#fff" stroke="#1d2433" stroke-width="5"/>' +
+  '<circle cx="48" cy="74" r="3.5" fill="#1d2433"/>' +
+  '<path d="M14 82 L82 14" stroke="#ff4f5a" stroke-width="9" stroke-linecap="round"/>' +
+  '</svg>';
+
+/** Écran de repli quand le rendu 3D ne peut pas démarrer : fond ciel + tablette barrée. */
+export function showNoWebGlScreen(parent: HTMLElement): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'cb-nowebgl';
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', 'Jeu indisponible sur cet appareil');
+  el.innerHTML = NO_WEBGL_ICON;
+  parent.appendChild(el);
+  return el;
+}
+
 /** Panneau des crédits (pour les parents) avec un gros bouton fermer. */
 export class CreditsPanel {
   private readonly el: HTMLDivElement;
+  private readonly restoreBtn: HTMLButtonElement | null = null;
 
-  constructor(parent: HTMLElement, text: string, onClose?: () => void) {
+  constructor(parent: HTMLElement, text: string, opts: CreditsPanelOptions = {}) {
+    const { onClose, onRestorePrevious } = opts;
     const el = document.createElement('div');
     el.className = 'cb-credits';
     el.setAttribute(NO_LOOK_ATTR, '');
@@ -91,6 +129,19 @@ export class CreditsPanel {
 
     const box = document.createElement('div');
     box.className = 'cb-credits-box';
+    if (onRestorePrevious) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cb-credits-restore';
+      btn.hidden = true;
+      btn.innerHTML = UNDO_ICON;
+      const label = document.createElement('span');
+      label.textContent = 'Restaurer le monde précédent';
+      btn.appendChild(label);
+      btn.addEventListener('click', () => onRestorePrevious());
+      box.appendChild(btn);
+      this.restoreBtn = btn;
+    }
     box.appendChild(renderCredits(text));
 
     const close = document.createElement('button');
@@ -121,5 +172,15 @@ export class CreditsPanel {
 
   hide(): void {
     this.el.hidden = true;
+  }
+
+  /** Affiche / masque le bouton « Restaurer le monde précédent ». */
+  setRestoreAvailable(on: boolean): void {
+    if (this.restoreBtn) this.restoreBtn.hidden = !on;
+  }
+
+  /** Désactive le bouton pendant une restauration. */
+  setRestoreBusy(busy: boolean): void {
+    if (this.restoreBtn) this.restoreBtn.disabled = busy;
   }
 }

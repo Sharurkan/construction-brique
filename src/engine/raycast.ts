@@ -1,4 +1,4 @@
-import { BlockId, type RaycastHit, type Vec3i } from '../core/types';
+import { BlockId, type RaycastHit } from '../core/types';
 
 export interface Vec3Like {
   x: number;
@@ -16,6 +16,8 @@ export interface Vec3Like {
  * - `distance` = distance le long du rayon (direction normalisée) jusqu'à la face touchée.
  * - Si l'origine est déjà dans un bloc plein, il est renvoyé avec distance 0 et une
  *   normale opposée à l'axe dominant de la direction.
+ * - `out` (optionnel) : résultat réutilisé (aucune allocation par appel) ; il est renvoyé
+ *   rempli en cas d'impact, sinon `null` (son contenu est alors indéterminé).
  */
 export function raycastVoxels(
   get: (x: number, y: number, z: number) => number,
@@ -25,6 +27,7 @@ export function raycastVoxels(
   origin: Vec3Like,
   dir: Vec3Like,
   maxDist: number,
+  out?: RaycastHit,
 ): RaycastHit | null {
   const len = Math.hypot(dir.x, dir.y, dir.z);
   if (!(len > 0) || !(maxDist > 0)) return null;
@@ -35,52 +38,33 @@ export function raycastVoxels(
   const oy = origin.y;
   const oz = origin.z;
 
-  // --- Découpage par la boîte du monde (méthode des « slabs »). ---
-  let tEnter = 0;
-  let tExit = maxDist;
-  let enterAxis = -1;
-  const o = [ox, oy, oz];
-  const d = [dx, dy, dz];
-  const s = [sizeX, sizeY, sizeZ];
-  for (let a = 0; a < 3; a++) {
-    if (d[a] === 0) {
-      if (o[a] < 0 || o[a] > s[a]) return null;
-      continue;
-    }
-    let t1 = (0 - o[a]) / d[a];
-    let t2 = (s[a] - o[a]) / d[a];
-    if (t1 > t2) {
-      const tmp = t1;
-      t1 = t2;
-      t2 = tmp;
-    }
-    if (t1 > tEnter) {
-      tEnter = t1;
-      enterAxis = a;
-    }
-    if (t2 < tExit) tExit = t2;
-    if (tEnter > tExit) return null;
-  }
+  // --- Découpage par la boîte du monde (méthode des « slabs »), axe par axe sans tableau. ---
+  slab.tEnter = 0;
+  slab.tExit = maxDist;
+  slab.axis = -1;
+  if (!clipAxis(ox, dx, sizeX, 0) || !clipAxis(oy, dy, sizeY, 1) || !clipAxis(oz, dz, sizeZ, 2)) return null;
+  const tEnter = slab.tEnter;
+  const enterAxis = slab.axis;
 
   // Point d'entrée et voxel de départ (borné dans le volume).
-  const px = ox + dx * tEnter;
-  const py = oy + dy * tEnter;
-  const pz = oz + dz * tEnter;
-  let x = clampInt(Math.floor(px), 0, sizeX - 1);
-  let y = clampInt(Math.floor(py), 0, sizeY - 1);
-  let z = clampInt(Math.floor(pz), 0, sizeZ - 1);
+  let x = clampInt(Math.floor(ox + dx * tEnter), 0, sizeX - 1);
+  let y = clampInt(Math.floor(oy + dy * tEnter), 0, sizeY - 1);
+  let z = clampInt(Math.floor(oz + dz * tEnter), 0, sizeZ - 1);
 
-  const normal: Vec3i = [0, 0, 0];
-  if (enterAxis >= 0) {
-    normal[enterAxis] = d[enterAxis] > 0 ? -1 : 1;
-  } else {
+  let nx = 0;
+  let ny = 0;
+  let nz = 0;
+  if (enterAxis === 0) nx = dx > 0 ? -1 : 1;
+  else if (enterAxis === 1) ny = dy > 0 ? -1 : 1;
+  else if (enterAxis === 2) nz = dz > 0 ? -1 : 1;
+  else {
     // Origine dans le volume : normale « par défaut » face au rayon.
     const ax = Math.abs(dx);
     const ay = Math.abs(dy);
     const az = Math.abs(dz);
-    if (ax >= ay && ax >= az) normal[0] = dx > 0 ? -1 : 1;
-    else if (ay >= az) normal[1] = dy > 0 ? -1 : 1;
-    else normal[2] = dz > 0 ? -1 : 1;
+    if (ax >= ay && ax >= az) nx = dx > 0 ? -1 : 1;
+    else if (ay >= az) ny = dy > 0 ? -1 : 1;
+    else nz = dz > 0 ? -1 : 1;
   }
 
   const stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0;
@@ -101,33 +85,68 @@ export function raycastVoxels(
     if (x < 0 || y < 0 || z < 0 || x >= sizeX || y >= sizeY || z >= sizeZ) return null;
     const id = get(x, y, z);
     if (id !== BlockId.Air) {
-      return { block: [x, y, z], normal: [normal[0], normal[1], normal[2]], id: id as BlockId, distance: t };
+      if (!out) return { block: [x, y, z], normal: [nx, ny, nz], id: id as BlockId, distance: t };
+      out.block[0] = x;
+      out.block[1] = y;
+      out.block[2] = z;
+      out.normal[0] = nx;
+      out.normal[1] = ny;
+      out.normal[2] = nz;
+      out.id = id as BlockId;
+      out.distance = t;
+      return out;
     }
     if (tMaxX < tMaxY && tMaxX < tMaxZ) {
       t = tMaxX;
       x += stepX;
       tMaxX += tDeltaX;
-      normal[0] = -stepX;
-      normal[1] = 0;
-      normal[2] = 0;
+      nx = -stepX;
+      ny = 0;
+      nz = 0;
     } else if (tMaxY < tMaxZ) {
       t = tMaxY;
       y += stepY;
       tMaxY += tDeltaY;
-      normal[0] = 0;
-      normal[1] = -stepY;
-      normal[2] = 0;
+      nx = 0;
+      ny = -stepY;
+      nz = 0;
     } else {
       t = tMaxZ;
       z += stepZ;
       tMaxZ += tDeltaZ;
-      normal[0] = 0;
-      normal[1] = 0;
-      normal[2] = -stepZ;
+      nx = 0;
+      ny = 0;
+      nz = -stepZ;
     }
     if (t > maxDist) return null;
   }
   return null;
+}
+
+/** État du découpage (module, réutilisé : le raycast n'est pas réentrant). */
+const slab = { tEnter: 0, tExit: 0, axis: -1 };
+
+/** Restreint [tEnter, tExit] à la tranche [0, size] d'un axe. Renvoie false si le rayon la manque. */
+function clipAxis(o: number, d: number, size: number, axis: number): boolean {
+  if (d === 0) return !(o < 0 || o > size);
+  let t1 = (0 - o) / d;
+  let t2 = (size - o) / d;
+  if (t1 > t2) {
+    const tmp = t1;
+    t1 = t2;
+    t2 = tmp;
+  }
+  if (t1 > slab.tEnter) {
+    slab.tEnter = t1;
+    slab.axis = axis;
+  }
+  if (t2 < slab.tExit) slab.tExit = t2;
+  return slab.tEnter <= slab.tExit;
+}
+
+/** Résultat vide à passer en `out` (réutilisable). */
+export function createRaycastHit(): RaycastHit {
+  return { block: [0, 0, 0], normal: [0, 0, 0], id: BlockId.Air, distance: 0 };
 }
 
 function clampInt(v: number, lo: number, hi: number): number {

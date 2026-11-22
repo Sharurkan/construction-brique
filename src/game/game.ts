@@ -4,11 +4,11 @@
  */
 import * as THREE from 'three';
 import { BlockId, SAVE_VERSION, type GameActions, type RaycastHit, type SavedWorld } from '../core/types';
-import { BLOCKS, PALETTE, World, WorldRenderer, findSpawn, generateWorld } from '../engine';
+import { BLOCKS, PALETTE, World, WorldRenderer, createRaycastHit, findSpawn, generateWorld } from '../engine';
 import { InputManager } from '../controls/input';
 import { Player } from '../player/player';
 import { Hud } from '../ui/hud';
-import { createSaveStore } from '../platform/save';
+import { createSaveStore, hasPreviousSlot } from '../platform/save';
 import { createAutosave } from '../platform/autosave';
 import { registerPwa, requestFullscreenAndLandscape, requestPersistentStorage } from '../platform/pwa';
 import { WebAudioSoundPlayer } from '../audio/sound';
@@ -19,18 +19,33 @@ import { applyUiAssets } from './uiAssets';
 import { SOUNDS } from '../assets/manifest';
 import { BlockHighlight } from './highlight';
 import { BreakParticles } from './particles';
-import { CreditsPanel, showStartScreen } from './screens';
+import { CreditsPanel, isStartScreenVisible, showNoWebGlScreen, showStartScreen } from './screens';
 import { CREDITS_TEXT } from './credits';
 import { DebugOverlay } from './debug';
+import { PixelRatioAdjuster } from './pixelRatio';
 
 const SKY = 0x7ec8ff;
 /** Portée de la main (blocs). */
 const REACH = 6;
-/** Plafond du pixel ratio (perf tablette). Réglable par `?pr=1` dans l'URL. */
-const DEFAULT_MAX_PIXEL_RATIO = 1.5;
+/**
+ * Plafond du pixel ratio (perf tablette Mali-G52 / Adreno 610). Ajusté ensuite automatiquement
+ * (PixelRatioAdjuster, plancher 0.75) ; `?pr=1` dans l'URL force une valeur fixe.
+ */
+const DEFAULT_MAX_PIXEL_RATIO = 1.25;
+/** Brouillard et distance de vue : monde 96 × 96, du centre au coin ≈ 68 blocs. */
+const FOG_NEAR = 32;
+const FOG_FAR = 90;
+const CAMERA_FAR = 120;
+/** Hauteur max des pieds au-dessus du haut du monde. */
+const FLY_CEILING_MARGIN = 8;
 /** Chunks remaillés par frame : normal / juste après une action du joueur (réponse immédiate). */
 const REMESH_PER_FRAME = 2;
 const REMESH_AFTER_ACTION = 8;
+/** Après un changement de monde : beaucoup de chunks en attente → un peu plus par frame. */
+const REMESH_BACKLOG = 4;
+const REMESH_BACKLOG_THRESHOLD = 16;
+/** Rayon (en chunks) remaillé tout de suite autour du joueur au chargement / nouveau monde. */
+const REMESH_SYNC_RADIUS = 1;
 /** Pas de dt plus grand que ça (onglet ralenti, gros à-coup). */
 const MAX_FRAME_DT = 0.1;
 const STEP_INTERVAL = 0.45;
@@ -44,9 +59,10 @@ function randomSeed(): number {
 export async function startGame(app: HTMLElement): Promise<void> {
   const params = new URLSearchParams(location.search);
   const debug = params.has('debug');
-  const maxPixelRatio = Number(params.get('pr')) > 0 ? Number(params.get('pr')) : DEFAULT_MAX_PIXEL_RATIO;
+  const forcedPixelRatio = Number(params.get('pr')) > 0 ? Number(params.get('pr')) : null;
 
-  registerPwa();
+  // Mise à jour du jeu : appliquée seulement avant « jouer », sinon au prochain lancement.
+  registerPwa({ canReloadNow: isStartScreenVisible });
 
   // Sons Kenney (manifeste) : téléchargés et décodés seulement après le premier geste.
   const sound = new WebAudioSoundPlayer(SOUNDS);
@@ -65,18 +81,32 @@ export async function startGame(app: HTMLElement): Promise<void> {
   // Filet de sécurité si le geste arrive ailleurs que sur le bouton « jouer ».
   // pointerup (pas pointerdown) : c'est lui qui active le geste utilisateur au toucher.
   window.addEventListener('pointerup', firstGesture, { capture: true, once: true });
-  showStartScreen(document.body, firstGesture);
+  const startScreen = showStartScreen(document.body, firstGesture);
 
   // ---------- Three.js ----------
-  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxPixelRatio));
+  let renderer: THREE.WebGLRenderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  } catch (err) {
+    // WebGL indisponible (pilote, navigateur trop ancien…) : écran simple, sans texte.
+    console.error('[construction-brique] WebGL indisponible', err);
+    window.removeEventListener('pointerup', firstGesture, { capture: true });
+    startScreen.remove(); // l'écran de démarrage reste « affiché » pour la PWA : une mise à jour peut s'appliquer
+    showNoWebGlScreen(document.body);
+    return;
+  }
+  // Pixel ratio : forcé par ?pr=, sinon plafonné puis réglé selon le temps moyen d'image.
+  const pixelRatioAdjuster = forcedPixelRatio
+    ? null
+    : new PixelRatioAdjuster({ initial: Math.min(window.devicePixelRatio || 1, DEFAULT_MAX_PIXEL_RATIO) });
+  renderer.setPixelRatio(forcedPixelRatio ?? pixelRatioAdjuster?.value ?? 1);
   renderer.setClearColor(SKY);
   app.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY);
-  scene.fog = new THREE.Fog(SKY, 48, 130);
-  const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 260);
+  scene.fog = new THREE.Fog(SKY, FOG_NEAR, FOG_FAR);
+  const camera = new THREE.PerspectiveCamera(70, 1, 0.05, CAMERA_FAR);
 
   const resize = (): void => {
     const w = Math.max(1, app.clientWidth);
@@ -107,18 +137,21 @@ export async function startGame(app: HTMLElement): Promise<void> {
   if (!restored) generateWorld(world, seed);
 
   const worldRenderer = new WorldRenderer(world, scene, atlas);
-  worldRenderer.rebuildAll();
 
   // ---------- Joueur ----------
   const spawn = findSpawn(world);
   const player = new Player(spawn);
   player.setSpawn(spawn);
   player.setBounds({ minX: 0, maxX: world.sizeX, minZ: 0, maxZ: world.sizeZ });
+  // Plafond de vol : un peu au-dessus du monde (au-delà, on ne voit plus que le ciel).
+  player.setVerticalBounds({ maxY: world.sizeY + FLY_CEILING_MARGIN });
   if (restored) {
     player.teleport(restored.player.position);
     player.state.yaw = restored.player.yaw;
     player.state.pitch = restored.player.pitch;
   }
+  // Remaillage sans gel : chunks autour du joueur tout de suite, le reste au fil des frames.
+  worldRenderer.rebuildAround(player.state.position, REMESH_SYNC_RADIUS);
 
   let selected: BlockId =
     restored && PALETTE.includes(restored.selected as BlockId) ? (restored.selected as BlockId) : PALETTE[0];
@@ -127,13 +160,14 @@ export async function startGame(app: HTMLElement): Promise<void> {
   const particles = new BreakParticles(scene);
 
   // ---------- Sauvegarde ----------
-  const autosave = createAutosave(store, () => ({
+  const currentState = (): SavedWorld => ({
     version: SAVE_VERSION,
     sizeX: world.sizeX,
     sizeY: world.sizeY,
     sizeZ: world.sizeZ,
     seed,
-    blocks: world.serialize(),
+    // Copie partagée, recalculée seulement après un changement de bloc (sauvegarde fréquente).
+    blocks: world.snapshot(),
     player: {
       position: { ...player.state.position },
       yaw: player.state.yaw,
@@ -141,8 +175,11 @@ export async function startGame(app: HTMLElement): Promise<void> {
     },
     selected,
     savedAt: Date.now(),
-  }));
+  });
+  const autosave = createAutosave(store, currentState);
   world.onChange(() => autosave.markDirty());
+  // Monde tout juste généré : jamais écrit, il faut une écriture complète.
+  if (!restored) autosave.markDirty();
 
   // ---------- Sons ----------
   // Le HUD signale chaque appui (clic) ; si l'appui déclenche aussi un vrai son
@@ -162,9 +199,13 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
   // ---------- Actions ----------
   let boostRemesh = false;
+  // Objets réutilisés à chaque frame (pas d'allocation dans la boucle). Le résultat est
+  // valable jusqu'au prochain appel de target().
+  const lookRay = player.getLookRayInto({ origin: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: 0 } });
+  const hitOut = createRaycastHit();
   const target = (): RaycastHit | null => {
-    const ray = player.getLookRay();
-    return world.raycast(ray.origin, ray.dir, REACH);
+    player.getLookRayInto(lookRay);
+    return world.raycastInto(lookRay.origin, lookRay.dir, REACH, hitOut);
   };
 
   let hud: Hud | null = null;
@@ -196,15 +237,24 @@ export async function startGame(app: HTMLElement): Promise<void> {
     selectBlock(id) {
       selected = id;
       sfx('select');
-      autosave.markDirty();
+      autosave.markDirty('player');
     },
     newWorld() {
+      // Copie du monde actuel dans l'emplacement « précédent » (restaurable depuis la zone
+      // parents). Instantané pris AVANT la régénération ; écriture en tâche de fond, échec ignoré.
+      if (hasPreviousSlot(store)) {
+        const snapshot = currentState();
+        void store
+          .savePrevious(snapshot)
+          .then(() => credits.setRestoreAvailable(true))
+          .catch((err: unknown) => console.warn('[nouveau monde] copie du monde précédent impossible', err));
+      }
       seed = randomSeed();
       generateWorld(world, seed);
-      worldRenderer.rebuildAll();
       const s = findSpawn(world);
       player.setSpawn(s);
       player.teleport(s);
+      worldRenderer.rebuildAround(s, REMESH_SYNC_RADIUS);
       player.state.yaw = 0;
       player.state.pitch = 0;
       if (player.flying) {
@@ -237,13 +287,64 @@ export async function startGame(app: HTMLElement): Promise<void> {
   });
 
   // ---------- HUD, crédits ----------
-  const credits = new CreditsPanel(document.body, CREDITS_TEXT);
+  /** Remplace le monde en cours par une sauvegarde (blocs, graine, joueur, bloc choisi). */
+  const applySaved = (s: SavedWorld): boolean => {
+    if (s.sizeX !== world.sizeX || s.sizeY !== world.sizeY || s.sizeZ !== world.sizeZ) return false;
+    try {
+      world.load(s.blocks);
+    } catch {
+      return false;
+    }
+    seed = s.seed;
+    player.setSpawn(findSpawn(world));
+    player.teleport(s.player.position);
+    worldRenderer.rebuildAround(s.player.position, REMESH_SYNC_RADIUS);
+    player.state.yaw = s.player.yaw;
+    player.state.pitch = s.player.pitch;
+    if (PALETTE.includes(s.selected as BlockId)) {
+      selected = s.selected as BlockId;
+      hud?.select(selected, false);
+    }
+    return true;
+  };
+
+  // Restaurer = échanger courant ↔ précédent (un 2e appui annule la restauration).
+  let restoring = false;
+  const restorePrevious = async (): Promise<void> => {
+    if (restoring || !hasPreviousSlot(store)) return;
+    restoring = true;
+    credits.setRestoreBusy(true);
+    try {
+      await autosave.flush(); // aucune écriture du monde actuel ne doit passer APRÈS l'échange
+      const back = await store.swapWithPrevious(currentState());
+      if (!back || !applySaved(back)) return;
+      // Réécrit le monde restauré : écrase une éventuelle écriture lancée pendant l'échange.
+      autosave.markDirty();
+      void autosave.flush();
+      sfx('newWorld');
+    } catch (err) {
+      console.warn('[restauration] échec', err);
+    } finally {
+      restoring = false;
+      credits.setRestoreBusy(false);
+    }
+  };
+  const refreshRestoreButton = (): void => {
+    if (!hasPreviousSlot(store)) return;
+    void store.hasPrevious().then((has) => credits.setRestoreAvailable(has), () => {});
+  };
+
+  const credits = new CreditsPanel(document.body, CREDITS_TEXT, { onRestorePrevious: () => void restorePrevious() });
+  refreshRestoreButton();
   hud = new Hud(document.body, actions, PALETTE, (id) => BLOCKS[id].color, {
     initialSelected: selected,
     initialSoundOn: sound.enabled,
     onJumpChange: (down) => input.setButton('jump', down),
     onDescendChange: (down) => input.setButton('descend', down),
-    onCredits: () => credits.show(),
+    onCredits: () => {
+      refreshRestoreButton();
+      credits.show();
+    },
     onSoundToggle: (on) => {
       sound.setEnabled(on);
       sound.unlock();
@@ -262,12 +363,23 @@ export async function startGame(app: HTMLElement): Promise<void> {
   const debugOverlay = debug
     ? new DebugOverlay(document.body, renderer, worldRenderer.stats, () => {
         const p = player.state.position;
-        return `\npos        ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}${player.flying ? ' (vol)' : ''}\nseed       ${seed}`;
+        return `\npos        ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}${player.flying ? ' (vol)' : ''}\nseed       ${seed}\npr mode    ${forcedPixelRatio ? 'forcé (?pr)' : 'auto'}`;
       })
     : null;
 
   // ---------- Boucle ----------
   let raf = 0;
+  // Contexte WebGL perdu (GPU réinitialisé, appli en arrière-plan sur Android) : on empêche
+  // l'abandon définitif (preventDefault) et on remaille tout quand il revient.
+  let contextLost = false;
+  renderer.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    contextLost = true;
+  });
+  renderer.domElement.addEventListener('webglcontextrestored', () => {
+    contextLost = false;
+    worldRenderer.rebuildAll();
+  });
   let last = performance.now();
   let stepTimer = 0;
   let wasOnGround = player.onGround;
@@ -276,8 +388,12 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
   const frame = (now: number): void => {
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(Math.max((now - last) / 1000, 0), MAX_FRAME_DT);
+    const frameMs = now - last;
+    const dt = Math.min(Math.max(frameMs / 1000, 0), MAX_FRAME_DT);
     last = now;
+    // Pas de mesure pendant un remaillage en cours (démarrage, nouveau monde) : coût passager.
+    const pr = worldRenderer.stats.pending === 0 ? pixelRatioAdjuster?.sample(frameMs) : null;
+    if (pr) renderer.setPixelRatio(pr);
 
     player.update(dt, input.state, world);
     input.consumeLook();
@@ -306,16 +422,23 @@ export async function startGame(app: HTMLElement): Promise<void> {
         lastSavedPos.x = p.x;
         lastSavedPos.y = p.y;
         lastSavedPos.z = p.z;
-        autosave.markDirty();
+        autosave.markDirty('player'); // position seule : les blocs ne sont pas réécrits
       }
     }
 
     highlight.update(target());
     particles.update(dt);
-    worldRenderer.update(boostRemesh ? REMESH_AFTER_ACTION : REMESH_PER_FRAME, p);
+    worldRenderer.update(
+      boostRemesh
+        ? REMESH_AFTER_ACTION
+        : worldRenderer.stats.pending > REMESH_BACKLOG_THRESHOLD
+          ? REMESH_BACKLOG
+          : REMESH_PER_FRAME,
+      p,
+    );
     boostRemesh = false;
 
-    renderer.render(scene, camera);
+    if (!contextLost) renderer.render(scene, camera);
     debugOverlay?.frame();
   };
 
@@ -331,8 +454,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
   if (!document.hidden) start();
 
-  // Accès console (débogage, tests navigateur).
-  Object.assign(window, {
+  // Accès console (débogage, tests navigateur) : seulement avec ?debug ou en développement.
+  if (debug || import.meta.env.DEV) Object.assign(window, {
     __game: { world, player, hud, input, actions, autosave, store, sound, renderer, worldRenderer, scene, camera, credits, get seed() { return seed; }, get selected() { return selected; } },
   });
 }

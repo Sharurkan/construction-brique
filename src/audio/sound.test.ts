@@ -80,4 +80,34 @@ describe('WebAudioSoundPlayer', () => {
     p.play('click');
     expect(ctx.played).toHaveLength(1);
   });
+
+  it('échec total de chargement : rien de mémorisé, nouvel essai après le délai minimal', async () => {
+    let t = 0;
+    let online = false;
+    let fetches = 0;
+    const flaky = async (url: string): Promise<ArrayBuffer> => {
+      fetches++;
+      if (!online) throw new Error('hors ligne');
+      return new TextEncoder().encode(url).buffer as ArrayBuffer;
+    };
+    const ctx = fakeContext();
+    const p = new WebAudioSoundPlayer(
+      { place: ['p.ogg'] },
+      { createContext: () => ctx as unknown as AudioContext, fetchBuffer: flaky, now: () => t, retryDelayMs: 5000 },
+    );
+    p.unlock();
+    await flush();
+    const afterUnlock = fetches;
+    p.play('place');
+    await flush();
+    expect(ctx.played.length).toBe(0);
+    expect(fetches).toBe(afterUnlock); // pas de nouvel essai avant le délai (pas de boucle)
+    online = true;
+    t = 6000;
+    p.play('place'); // relance le chargement (silence cette fois)
+    await flush();
+    expect(fetches).toBe(afterUnlock + 1);
+    p.play('place');
+    expect(ctx.played).toEqual([{ tag: 'p.ogg' }]);
+  });
 });

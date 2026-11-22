@@ -24,11 +24,13 @@ const EPS = 1e-4;
 const UNSTUCK_MAX = 512;
 
 export interface Vec3 { x: number; y: number; z: number }
+export interface LookRay { origin: Vec3; dir: Vec3 }
 
 /** Entrées du joueur : le contrat + options internes à l'Agent D (descendre en vol). */
 export type PlayerInput = InputState & { descend?: boolean };
 
 export interface HorizontalBounds { minX: number; maxX: number; minZ: number; maxZ: number }
+export interface VerticalBounds { maxY: number }
 
 /** Vrai si le bloc [x,x+1)×[y,y+1)×[z,z+1) chevauche l'AABB d'un joueur dont les pieds sont en `feet`. */
 export function blockIntersectsPlayer(feet: Vec3, x: number, y: number, z: number): boolean {
@@ -48,6 +50,7 @@ export class Player {
   autoJump = true;
   private spawn: Vec3;
   private bounds: HorizontalBounds | null = null;
+  private maxY = Infinity;
 
   constructor(spawn: Vec3 = { x: 0, y: 0, z: 0 }, yaw = 0, pitch = 0) {
     this.spawn = { ...spawn };
@@ -59,13 +62,17 @@ export class Player {
     this.spawn = { ...p };
   }
 
-  getSpawn(): Vec3 {
-    return { ...this.spawn };
-  }
-
   /** Limites horizontales optionnelles (murs invisibles) : hors de ces limites, tout est solide. */
   setBounds(b: HorizontalBounds | null): void {
     this.bounds = b ? { ...b } : null;
+  }
+
+  /**
+   * Plafond optionnel : hauteur max des PIEDS (ex. `world.sizeY + 8`), en vol comme au saut.
+   * Évite de monter si haut qu'on ne voit plus que le ciel.
+   */
+  setVerticalBounds(b: VerticalBounds | null): void {
+    this.maxY = b ? b.maxY : Infinity;
   }
 
   /** Téléporte (pieds) et remet la vitesse à zéro. */
@@ -118,23 +125,37 @@ export class Player {
   }
 
   getEyePosition(): Vec3 {
+    return this.getEyePositionInto({ x: 0, y: 0, z: 0 });
+  }
+
+  /** Comme getEyePosition(), sans allocation. */
+  getEyePositionInto(out: Vec3): Vec3 {
     const p = this.state.position;
-    return { x: p.x, y: p.y + EYE_HEIGHT, z: p.z };
+    out.x = p.x;
+    out.y = p.y + EYE_HEIGHT;
+    out.z = p.z;
+    return out;
   }
 
   /** Rayon de visée : origine aux yeux, direction unitaire (yaw 0 = vers -Z, pitch > 0 = vers le haut). */
-  getLookRay(): { origin: Vec3; dir: Vec3 } {
+  getLookRay(): LookRay {
+    return this.getLookRayInto({ origin: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: 0 } });
+  }
+
+  /** Comme getLookRay(), sans allocation : remplit et renvoie `out` (à appeler à chaque frame). */
+  getLookRayInto(out: LookRay): LookRay {
     const { yaw, pitch } = this.state;
     const cp = Math.cos(pitch);
-    return {
-      origin: this.getEyePosition(),
-      dir: { x: -Math.sin(yaw) * cp, y: Math.sin(pitch), z: -Math.cos(yaw) * cp },
-    };
+    this.getEyePositionInto(out.origin);
+    out.dir.x = -Math.sin(yaw) * cp;
+    out.dir.y = Math.sin(pitch);
+    out.dir.z = -Math.cos(yaw) * cp;
+    return out;
   }
 
   applyToCamera(camera: PerspectiveCamera): void {
-    const e = this.getEyePosition();
-    camera.position.set(e.x, e.y, e.z);
+    const p = this.state.position;
+    camera.position.set(p.x, p.y + EYE_HEIGHT, p.z);
     camera.rotation.order = 'YXZ';
     camera.rotation.set(this.state.pitch, this.state.yaw, 0);
   }
@@ -182,6 +203,11 @@ export class Player {
       this.velocity.y = 0;
     } else if (vy !== 0) {
       this.onGround = false;
+    }
+    if (this.state.position.y > this.maxY) {
+      // Plafond : on reste dessous (vitesse montante annulée).
+      this.state.position.y = this.maxY;
+      if (this.velocity.y > 0) this.velocity.y = 0;
     }
     if (!blockedY && vy === 0 && !this.flying) {
       // Vitesse nulle exactement (rare) : vérifier s'il y a un sol sous les pieds.

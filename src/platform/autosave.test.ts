@@ -350,3 +350,64 @@ describe("createAutosave : sauvegarde d'urgence", () => {
     a.dispose();
   });
 });
+
+describe('createAutosave : joueur seul', () => {
+  class PlayerStore extends SlowStore {
+    log: string[] = [];
+    override async save(w: SavedWorld) {
+      this.log.push('full');
+      await super.save(w);
+    }
+    async savePlayer(w: SavedWorld) {
+      if (this.fail) throw new Error('disque plein');
+      this.log.push('player');
+      this.saves.push(w);
+    }
+  }
+  const opts = { documentTarget: null, windowTarget: null, onError: () => {} };
+
+  it('déplacement seul → savePlayer ; bloc modifié → écriture complète', async () => {
+    const s = new PlayerStore();
+    const a = createAutosave(s, () => state(), opts);
+    a.markDirty('player');
+    await a.flush();
+    a.markDirty('player');
+    a.markDirty('player');
+    await a.flush();
+    a.markDirty('world');
+    a.markDirty('player');
+    await a.flush();
+    a.markDirty('player');
+    await a.flush();
+    a.markDirty(); // défaut = monde
+    await a.flush();
+    expect(s.log).toEqual(['player', 'player', 'full', 'player', 'full']);
+    a.dispose();
+  });
+
+  it('écriture complète ratée : la suivante reste complète même si seul le joueur a bougé', async () => {
+    const s = new PlayerStore();
+    const a = createAutosave(s, () => state(), opts);
+    a.markDirty('world');
+    s.fail = true;
+    await a.flush();
+    s.fail = false;
+    a.markDirty('player');
+    await a.flush();
+    a.markDirty('player');
+    await a.flush();
+    // 1er « full » raté, puis « full » réussi (pas « player »), puis « player ».
+    expect(s.log).toEqual(['full', 'full', 'player']);
+    expect(s.saves.length).toBe(2);
+    a.dispose();
+  });
+
+  it('store sans savePlayer : toujours une écriture complète', async () => {
+    const s = new SlowStore();
+    const a = createAutosave(s, () => state(), opts);
+    a.markDirty('player');
+    await a.flush();
+    expect(s.saves.length).toBe(1);
+    a.dispose();
+  });
+});

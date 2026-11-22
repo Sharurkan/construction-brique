@@ -1,7 +1,7 @@
 // API publique du moteur (Agent C).
 export { BLOCKS, PALETTE, ALL_TILE_KEYS, isCutout, isValidBlockId } from './blocks';
 export { World } from './world';
-export { raycastVoxels, type Vec3Like } from './raycast';
+export { raycastVoxels, createRaycastHit, type Vec3Like } from './raycast';
 export { generateWorld, findSpawn, mulberry32, valueNoise2, TERRAIN_MIN, TERRAIN_MAX } from './worldgen';
 export {
   type TextureAtlas,

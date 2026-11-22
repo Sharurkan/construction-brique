@@ -37,6 +37,8 @@ export class World implements VoxelWorld {
   private readonly listeners = new Set<ChangeListener>();
   /** Chunks à remailler, clé = cx + chunksX * (cz + chunksZ * cy). */
   private readonly dirty = new Set<number>();
+  /** Copie des blocs partagée par snapshot(), invalidée à chaque modification. */
+  private snapshotCache: Uint8Array | null = null;
 
   constructor(sizeX = WORLD_SIZE_X, sizeY = WORLD_SIZE_Y, sizeZ = WORLD_SIZE_Z) {
     if (sizeX % CHUNK_SIZE || sizeY % CHUNK_SIZE || sizeZ % CHUNK_SIZE) {
@@ -91,6 +93,7 @@ export class World implements VoxelWorld {
     if (current === id) return false;
     if (current !== BlockId.Air && !BLOCKS[current].breakable) return false;
     this.data[i] = id;
+    this.snapshotCache = null;
     this.markBlockDirty(x, y, z);
     for (const cb of this.listeners) cb(x, y, z, id);
     return true;
@@ -103,28 +106,28 @@ export class World implements VoxelWorld {
   setBlockRaw(x: number, y: number, z: number, id: BlockId): void {
     if (!this.inBounds(x, y, z)) return;
     this.data[x + this.sizeX * (z + this.sizeZ * y)] = id;
+    this.snapshotCache = null;
   }
 
   /** Vide le monde (tout en Air) et marque tous les chunks. */
   clear(): void {
     this.data.fill(BlockId.Air);
+    this.snapshotCache = null;
     this.markAllDirty();
   }
 
   raycast(origin: Vec3Like, dir: Vec3Like, maxDist: number): RaycastHit | null {
-    const data = this.data;
-    const sx = this.sizeX;
-    const sz = this.sizeZ;
-    return raycastVoxels(
-      (x, y, z) => data[x + sx * (z + sz * y)],
-      this.sizeX,
-      this.sizeY,
-      this.sizeZ,
-      origin,
-      dir,
-      maxDist,
-    );
+    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist);
   }
+
+  /** Comme raycast(), sans allocation : remplit et renvoie `out` (ou `null` si rien n'est touché). */
+  raycastInto(origin: Vec3Like, dir: Vec3Like, maxDist: number, out: RaycastHit): RaycastHit | null {
+    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist, out);
+  }
+
+  /** Lecture sans contrôle (coordonnées dans le volume), créée une fois pour le raycast. */
+  private readonly rawGet = (x: number, y: number, z: number): number =>
+    this.data[x + this.sizeX * (z + this.sizeZ * y)];
 
   onChange(cb: ChangeListener): () => void {
     this.listeners.add(cb);
@@ -137,6 +140,15 @@ export class World implements VoxelWorld {
     return this.data.slice();
   }
 
+  /**
+   * Comme serialize(), mais la copie est PARTAGÉE et réutilisée tant qu'aucun bloc ne change
+   * (sauvegarde fréquente sans recopier ~440 Ko). Ne pas la modifier.
+   */
+  snapshot(): Uint8Array {
+    if (!this.snapshotCache) this.snapshotCache = this.data.slice();
+    return this.snapshotCache;
+  }
+
   load(data: Uint8Array): void {
     if (data.length !== this.data.length) {
       throw new Error(`Taille de sauvegarde invalide : ${data.length} au lieu de ${this.data.length}`);
@@ -145,6 +157,7 @@ export class World implements VoxelWorld {
       // Valeurs inconnues (sauvegarde corrompue / future) → Air.
       this.data[i] = data[i] < BLOCK_COUNT ? data[i] : BlockId.Air;
     }
+    this.snapshotCache = null;
     this.markAllDirty();
   }
 

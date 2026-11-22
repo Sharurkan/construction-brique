@@ -174,3 +174,32 @@ describe('World', () => {
     expect(w2.setBlock(4, 5, 1, BLOCK_COUNT as BlockId)).toBe(false);
   });
 });
+
+describe('World.snapshot (cache des blocs sérialisés)', () => {
+  it('réutilise la même copie tant que rien ne change, puis la renouvelle', () => {
+    const w = new World(16, 16, 16);
+    const a = w.snapshot();
+    expect(w.snapshot()).toBe(a);
+    expect(a).not.toBe(w.data);
+    w.setBlock(1, 2, 3, BlockId.Stone);
+    const b = w.snapshot();
+    expect(b).not.toBe(a);
+    expect(b[w.index(1, 2, 3)]).toBe(BlockId.Stone);
+    expect(a[w.index(1, 2, 3)]).toBe(BlockId.Air); // l'ancienne copie n'est pas modifiée
+    w.setBlockRaw(0, 0, 0, BlockId.Dirt);
+    expect(w.snapshot()).not.toBe(b);
+    const c = w.snapshot();
+    w.load(new Uint8Array(16 * 16 * 16));
+    expect(w.snapshot()).not.toBe(c);
+    const d = w.snapshot();
+    w.clear();
+    expect(w.snapshot()).not.toBe(d);
+  });
+
+  it('setBlock refusé : copie conservée', () => {
+    const w = new World(16, 16, 16);
+    const a = w.snapshot();
+    expect(w.setBlock(0, 0, 0, BlockId.Air)).toBe(false);
+    expect(w.snapshot()).toBe(a);
+  });
+});
