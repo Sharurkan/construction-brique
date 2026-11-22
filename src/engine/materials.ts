@@ -217,6 +217,80 @@ void main() {
 }
 `;
 
+// ---------------------------------------------------------------------------
+// Matériau « eau » : shader des chunks + animation peu coûteuse (aucune texture en plus).
+// - Dessus / dessous : la tuile dérive lentement en diagonale, avec une petite ondulation
+//   (sinus de la position monde) → surface qui « vit ».
+// - Côtés : la tuile défile VERS LE BAS (effet de chute, visible surtout sur la cascade).
+// - Teinte bleue multipliée + reflet clair qui ondule ; alpha ≈ 0,7 (on voit le fond).
+// Les décalages temporels sont réduits par fract() dans le VERTEX shader (highp) : le fragment
+// shader ne manipule que de petites valeurs, sans perte de précision en mediump sur mobile.
+// Double face (on voit la surface depuis dessous l'eau) en une seule passe (forceSinglePass).
+// ---------------------------------------------------------------------------
+
+const waterVertexShader = /* glsl */ `
+attribute float tile;
+attribute float shade;
+attribute float face;
+uniform float uTime;
+varying vec2 vUv;
+varying float vTile;
+varying float vShade;
+varying float vSide;
+varying vec2 vOff;
+varying vec2 vWave;
+#include <fog_pars_vertex>
+void main() {
+  vUv = uv;
+  vTile = tile;
+  vShade = shade;
+  int f = int(face + 0.5);
+  vSide = (f == 2 || f == 3) ? 0.0 : 1.0;
+  // Dessus : dérive lente ; côtés : chute (v augmente → le motif descend).
+  vOff = vSide > 0.5 ? vec2(0.0, fract(uTime * 0.9)) : fract(vec2(uTime * 0.05, uTime * 0.031));
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  // Phase de l'ondulation : position monde, ramenée dans [0, 2π) par sommet.
+  float tw = mod(uTime, 6.2831853);
+  vWave = vec2(wp.x * 0.9 + wp.z * 0.6 + tw * 1.7, wp.z * 1.1 - wp.x * 0.4 + tw * 1.3);
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}
+`;
+
+const waterFragmentShader = /* glsl */ `
+uniform sampler2D uMap;
+uniform vec2 uAtlasSize;
+uniform float uCell;
+uniform float uPad;
+uniform float uTileSize;
+uniform float uTilesPerRow;
+uniform float uOpacity;
+uniform vec3 uTint;
+varying vec2 vUv;
+varying float vTile;
+varying float vShade;
+varying float vSide;
+varying vec2 vOff;
+varying vec2 vWave;
+#include <fog_pars_fragment>
+void main() {
+  float t = floor(vTile + 0.5);
+  float row = floor((t + 0.5) / uTilesPerRow);
+  float col = t - row * uTilesPerRow;
+  float h = 0.5 / uTileSize;
+  vec2 wob = vec2(sin(vWave.x), cos(vWave.y)) * 0.04 * (1.0 - vSide);
+  vec2 f = clamp(fract(vUv + vOff + wob), h, 1.0 - h);
+  vec2 px = vec2(col * uCell + uPad + f.x * uTileSize, row * uCell + uPad + (1.0 - f.y) * uTileSize);
+  vec3 c = texture2D(uMap, px / uAtlasSize).rgb * uTint * vShade;
+  // Reflet clair qui ondule (dessus seulement).
+  c += vec3(0.10, 0.13, 0.16) * (0.5 + 0.5 * sin(vWave.x + vWave.y)) * (1.0 - vSide);
+  gl_FragColor = vec4(c, uOpacity + vSide * 0.1);
+  #include <colorspace_fragment>
+  #include <fog_fragment>
+}
+`;
+
 /**
  * Direction du soleil (vers le soleil) des reflets : haut, côté +X / +Z, cohérente avec
  * l'ombrage précalculé des faces (FACE_LIGHT du mesher : +Y > +Z > +X).
@@ -234,6 +308,11 @@ export interface ChunkMaterials {
    * `uTime` (secondes, à avancer chaque frame : WorldRenderer.setTime) et `uSunDir`.
    */
   gem: THREE.ShaderMaterial;
+  /**
+   * Eau : semi-transparente (n'écrit pas la profondeur), double face, animée par `uTime`
+   * (même horloge que les gemmes : WorldRenderer.setTime).
+   */
+  water: THREE.ShaderMaterial;
   dispose(): void;
 }
 
@@ -287,16 +366,37 @@ export function createChunkMaterials(atlas: TextureAtlas): ChunkMaterials {
   });
   gem.name = 'chunk-gem';
 
+  const water = new THREE.ShaderMaterial({
+    vertexShader: waterVertexShader,
+    fragmentShader: waterFragmentShader,
+    uniforms: {
+      ...shared,
+      ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
+      uTime: { value: 0 },
+      uOpacity: { value: 0.72 },
+      uTint: { value: new THREE.Color(0.36, 0.62, 1.0) },
+    },
+    fog: true,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    // Une seule passe malgré la double face (sinon Three dessine dos puis face : 2 appels).
+    forceSinglePass: true,
+  });
+  water.name = 'chunk-water';
+
   return {
     opaque,
     cutout,
     blend,
     gem,
+    water,
     dispose() {
       opaque.dispose();
       cutout.dispose();
       blend.dispose();
       gem.dispose();
+      water.dispose();
     },
   };
 }

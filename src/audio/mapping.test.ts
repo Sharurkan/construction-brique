@@ -84,6 +84,7 @@ describe('soundGroupFor', () => {
       click: 'click',
       select: 'select',
       newWorld: 'new_world',
+      splash: 'splash',
     };
     for (const [name, group] of Object.entries(expected)) {
       expect(soundGroupFor(name as SoundName)).toBe(group);
@@ -94,6 +95,13 @@ describe('soundGroupFor', () => {
     expect(soundGroupFor('break', BlockId.Stone)).toBe('break_stone');
     expect(soundGroupFor('step', BlockId.Planks)).toBe('step_wood');
     expect(soundGroupFor('place', BlockId.Glass)).toBe('place');
+  });
+
+  it('eau : casser / poser → sons doux, marcher au fond → pas doux', () => {
+    expect(materialOf(BlockId.Water)).toBe('soft');
+    expect(soundGroupFor('break', BlockId.Water)).toBe('break_soft');
+    expect(soundGroupFor('place', BlockId.Water)).toBe('place');
+    expect(soundGroupFor('step', BlockId.Water)).toBe('step_grass');
   });
 });
 

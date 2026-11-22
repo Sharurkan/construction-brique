@@ -42,6 +42,11 @@ export enum BlockId {
   SilverOre,
   /** Bloc PLEIN d'émeraude (tuile Kenney recolorée, voir game/atlas.ts). Le minerai = EmeraldOre. */
   EmeraldBlock,
+  /**
+   * Eau (id 31) : non solide (on la traverse en nageant), semi-transparente, posable et cassable.
+   * Aucun écoulement : elle reste là où elle est posée / générée.
+   */
+  Water,
 }
 
 /** Clé de tuile dans l'atlas (ex. 'grass_top'). L'atlas final viendra du pack choisi en Phase 2. */
@@ -84,6 +89,8 @@ export interface RaycastHit {
 /** Vue minimale du monde pour les collisions (utilisée par le joueur, Agent D). */
 export interface CollisionWorld {
   isSolid(x: number, y: number, z: number): boolean;
+  /** Eau au point (x, y, z) : nage du joueur. Absent = pas d'eau. */
+  isWater?(x: number, y: number, z: number): boolean;
 }
 
 export interface VoxelWorld extends CollisionWorld {
@@ -156,7 +163,7 @@ export interface SaveStore {
 }
 
 // ---------- Sons (Phase 2) ----------
-export type SoundName = 'break' | 'place' | 'step' | 'jump' | 'click' | 'select' | 'newWorld';
+export type SoundName = 'break' | 'place' | 'step' | 'jump' | 'click' | 'select' | 'newWorld' | 'splash';
 export interface SoundPlayer {
   play(name: SoundName, opts?: { blockId?: BlockId }): void;
   /** Doit être appelé sur un geste utilisateur (politique autoplay). */

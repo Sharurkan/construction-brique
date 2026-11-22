@@ -24,6 +24,9 @@ import { CREDITS_TEXT } from './credits';
 import { DebugOverlay } from './debug';
 import { PixelRatioAdjuster } from './pixelRatio';
 import { createGameSky } from './sky/sky';
+import { UNDERWATER_COLOR, UnderwaterTint } from './underwater';
+
+const UNDERWATER_CLEAR = new THREE.Color(UNDERWATER_COLOR);
 
 const SKY = 0x7ec8ff;
 /** Portée de la main (blocs). */
@@ -50,6 +53,8 @@ const REMESH_SYNC_RADIUS = 1;
 /** Pas de dt plus grand que ça (onglet ralenti, gros à-coup). */
 const MAX_FRAME_DT = 0.1;
 const STEP_INTERVAL = 0.45;
+/** Délai minimal entre deux « plouf » (on remonte / replonge souvent à la surface). */
+const SPLASH_COOLDOWN_MS = 1000;
 /** Vérification « le joueur a bougé » pour la sauvegarde. */
 const MOVE_SAVE_INTERVAL = 5;
 
@@ -237,7 +242,9 @@ export async function startGame(app: HTMLElement): Promise<void> {
       const y = hit.block[1] + hit.normal[1];
       const z = hit.block[2] + hit.normal[2];
       if (!world.inBounds(x, y, z)) return;
-      if (world.getBlock(x, y, z) !== BlockId.Air) return;
+      // Case libre : air, ou eau (on construit sous l'eau : le bloc remplace l'eau).
+      const current = world.getBlock(x, y, z);
+      if (current !== BlockId.Air && current !== BlockId.Water) return;
       if (player.wouldIntersectPlayer(x, y, z)) return;
       if (!world.setBlock(x, y, z, selected)) return;
       sfx('place', selected);
@@ -392,6 +399,9 @@ export async function startGame(app: HTMLElement): Promise<void> {
   let last = performance.now();
   let stepTimer = 0;
   let wasOnGround = player.onGround;
+  let wasInWater = player.inWater;
+  let lastSplash = -Infinity;
+  const underwater = new UnderwaterTint(scene);
   let moveSaveTimer = 0;
   const lastSavedPos = { x: player.state.position.x, y: player.state.position.y, z: player.state.position.z };
 
@@ -411,7 +421,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
     // Sons de pas et de saut.
     const p = player.state.position;
     const speed = Math.hypot(player.velocity.x, player.velocity.z);
-    if (player.onGround && !player.flying && speed > 0.5) {
+    if (player.onGround && !player.flying && !player.inWater && speed > 0.5) {
       stepTimer += dt;
       if (stepTimer >= STEP_INTERVAL) {
         stepTimer = 0;
@@ -420,8 +430,15 @@ export async function startGame(app: HTMLElement): Promise<void> {
     } else {
       stepTimer = STEP_INTERVAL * 0.6; // le premier pas arrive vite à la reprise
     }
-    if (wasOnGround && !player.onGround && !player.flying && player.velocity.y > 0) sfx('jump');
+    if (wasOnGround && !player.onGround && !player.flying && !player.inWater && player.velocity.y > 0) sfx('jump');
     wasOnGround = player.onGround;
+    // Eau : « plouf » à l'entrée (pas plus d'une fois par seconde), voile bleu tête sous l'eau.
+    if (player.inWater && !wasInWater && now - lastSplash > SPLASH_COOLDOWN_MS) {
+      lastSplash = now;
+      sfx('splash');
+    }
+    wasInWater = player.inWater;
+    underwater.update(player.headInWater && !player.flying);
 
     // Sauvegarde si le joueur a bougé (toutes les ~5 s).
     moveSaveTimer += dt;
@@ -451,7 +468,13 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
     sky?.update(dt);
     if (!contextLost) {
-      sky?.render(renderer, camera);
+      if (sky && underwater.isActive) {
+        // Tête sous l'eau : pas de ciel, fond bleu uni (autoClear est coupé quand le ciel existe).
+        renderer.setClearColor(UNDERWATER_CLEAR);
+        renderer.clear();
+      } else {
+        sky?.render(renderer, camera);
+      }
       renderer.render(scene, camera);
     }
     debugOverlay?.frame();

@@ -238,6 +238,30 @@ describe('meshChunk (greedy)', () => {
     expect(m.transparent.quadCount).toBe(5);
   });
 
+  it('eau : passe à part, pas de face entre deux eaux ni contre un bloc opaque', () => {
+    const w = new World();
+    w.setBlock(20, 20, 20, BlockId.Water);
+    w.setBlock(21, 20, 20, BlockId.Water);
+    w.setBlock(22, 20, 20, BlockId.Stone);
+    const m = meshChunk(w, 1, 1, 1, atlas);
+    // Eau : boîte 2×1×1, face contre la pierre cachée → 5 quads, aire 9, dans m.water seulement.
+    expect(m.water.quadCount).toBe(5);
+    expect(area(m.water)).toBeCloseTo(9);
+    expect(m.transparent.quadCount).toBe(0);
+    // La pierre garde sa face contre l'eau (on voit le fond à travers).
+    expect(m.opaque.quadCount).toBe(6);
+  });
+
+  it('eau contre verre : les deux faces sont dessinées ; chunk sans eau → maillage eau vide', () => {
+    const w = new World();
+    w.setBlock(20, 20, 20, BlockId.Water);
+    w.setBlock(21, 20, 20, BlockId.Glass);
+    const m = meshChunk(w, 1, 1, 1, atlas);
+    expect(m.water.quadCount).toBe(6);
+    expect(m.transparent.quadCount).toBe(6);
+    expect(meshChunk(w, 0, 0, 0, atlas).water.quadCount).toBe(0);
+  });
+
   it('maillage du monde généré : cohérent et rapide', () => {
     const w = new World();
     generateWorld(w, 42);
@@ -251,7 +275,7 @@ describe('meshChunk (greedy)', () => {
           const m = meshChunk(w, cx, cy, cz, atlas);
           worst = Math.max(worst, performance.now() - t);
           tris += (m.opaque.indices.length + m.transparent.indices.length) / 3;
-          for (const md of [m.opaque, m.transparent, m.gem]) {
+          for (const md of [m.opaque, m.transparent, m.gem, m.water]) {
             expect(md.positions.length).toBe(md.vertexCount * 3);
             for (let i = 0; i < md.indices.length; i++) expect(md.indices[i]).toBeLessThan(md.vertexCount);
           }

@@ -18,6 +18,27 @@ export const MAX_DT = 0.05;
 export const SUBSTEP = 1 / 120;
 export const RESPAWN_Y = -5;
 
+// ---------- Nage (aucune noyade, aucun dégât : on peut toujours remonter et sortir) ----------
+/** Vitesse horizontale dans l'eau, en fraction de la marche. */
+export const SWIM_SPEED_FACTOR = 0.6;
+/** Gravité dans l'eau : on coule doucement. */
+export const WATER_GRAVITY = 4;
+/** Vitesse de descente max dans l'eau (une chute depuis la cascade est vite amortie). */
+export const MAX_SINK_SPEED = 1.5;
+/** SAUTER maintenu dans l'eau = nager vers le haut à cette vitesse. */
+export const SWIM_UP_SPEED = 3.2;
+/**
+ * Sortie de l'eau : en avançant contre un bord, près de la surface, petit bond qui fait passer
+ * une berge d'un bloc au-dessus de l'eau (≈ 1,5 bloc). Plus bas, on « grimpe » le bord à
+ * SWIM_UP_SPEED : on sort ainsi d'un trou profond rempli d'eau sans rien savoir faire d'autre.
+ */
+export const WATER_EXIT_VELOCITY = JUMP_VELOCITY * 1.1;
+/** Hauteurs (au-dessus des pieds) testées pour « dans l'eau » : pieds et taille. */
+const WATER_FEET = 0.1;
+const WATER_WAIST = 0.9;
+/** Au-dessus des pieds : plus d'eau à cette hauteur = proche de la surface (bond de sortie). */
+const WATER_SURFACE_PROBE = 0.6;
+
 const HALF_W = PLAYER_WIDTH / 2;
 const EPS = 1e-4;
 /** Hauteur max de recherche d'un espace libre pour l'anti-blocage. */
@@ -46,6 +67,10 @@ export class Player {
   readonly velocity: Vec3 = { x: 0, y: 0, z: 0 };
   onGround = false;
   flying = false;
+  /** Le corps (pieds ou taille) est dans l'eau : nage (mis à jour à chaque sous-pas). */
+  inWater = false;
+  /** Les yeux sont sous l'eau (voile bleu à l'écran). Mis à jour à chaque update(). */
+  headInWater = false;
   /** Active l'auto-saut des marches d'un bloc. */
   autoJump = true;
   private spawn: Vec3;
@@ -111,6 +136,16 @@ export class Player {
       this.teleport(this.spawn);
       this.unstuck(world);
     }
+    const p = this.state.position;
+    this.headInWater = !!world.isWater?.(p.x, p.y + EYE_HEIGHT, p.z);
+    this.inWater = this.waterAt(world);
+  }
+
+  /** Pieds ou taille dans l'eau (au centre du joueur : simple et suffisant). */
+  private waterAt(world: CollisionWorld): boolean {
+    if (!world.isWater) return false;
+    const p = this.state.position;
+    return world.isWater(p.x, p.y + WATER_FEET, p.z) || world.isWater(p.x, p.y + WATER_WAIST, p.z);
   }
 
   /** Vrai si un bloc posé en (x,y,z) chevaucherait le joueur (à refuser). */
@@ -168,13 +203,25 @@ export class Player {
     let mz = input.move.z || 0;
     const n = Math.hypot(mx, mz);
     if (n > 1) { mx /= n; mz /= n; }
+    // Nage (jamais en vol : on vole au-dessus / à travers l'eau comme dans l'air).
+    const wet = !this.flying && (this.inWater = this.waterAt(world));
     // avant = (-sin yaw, -cos yaw), droite = (cos yaw, -sin yaw)
-    const speed = this.flying ? FLY_SPEED : WALK_SPEED;
+    const speed = this.flying ? FLY_SPEED : wet ? WALK_SPEED * SWIM_SPEED_FACTOR : WALK_SPEED;
     this.velocity.x = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * speed;
     this.velocity.z = (-Math.sin(yaw) * mx - Math.cos(yaw) * mz) * speed;
 
     if (this.flying) {
       this.velocity.y = ((input.jump ? 1 : 0) - (input.descend ? 1 : 0)) * FLY_SPEED;
+    } else if (wet) {
+      let vy = this.velocity.y;
+      if (input.jump) vy += (SWIM_UP_SPEED - vy) * Math.min(1, h * 8); // nager vers le haut
+      // Couler doucement : la gravité de l'eau ne dépasse jamais MAX_SINK_SPEED.
+      else vy = Math.max(vy - WATER_GRAVITY * h, Math.min(vy, -MAX_SINK_SPEED));
+      // Freinage de l'eau : chute amortie, élan vers le haut (saut dans la cascade) absorbé.
+      if (vy < -MAX_SINK_SPEED) vy += (-MAX_SINK_SPEED - vy) * Math.min(1, h * 12);
+      else if (vy > SWIM_UP_SPEED) vy += (SWIM_UP_SPEED - vy) * Math.min(1, h * 4);
+      this.velocity.y = vy;
+      this.onGround = false;
     } else {
       if (input.jump && this.onGround) {
         this.velocity.y = JUMP_VELOCITY;
@@ -188,8 +235,14 @@ export class Player {
     const blockedX = this.moveAxis(world, 0, dx);
     const blockedZ = this.moveAxis(world, 2, dz);
 
-    // Auto-saut : on avance contre un obstacle d'UN bloc et l'espace au-dessus est libre.
-    if (this.autoJump && !this.flying && this.onGround && n > 0.3 && (blockedX || blockedZ)) {
+    if (wet && n > 0.3 && (blockedX || blockedZ)) {
+      // Auto-sortie : on avance contre un bord en nageant → on grimpe ; près de la surface,
+      // petit bond pour passer la berge.
+      const p = this.state.position;
+      const nearSurface = !world.isWater?.(p.x, p.y + WATER_SURFACE_PROBE, p.z);
+      this.velocity.y = Math.max(this.velocity.y, nearSurface ? WATER_EXIT_VELOCITY : SWIM_UP_SPEED);
+    } else if (this.autoJump && !this.flying && !wet && this.onGround && n > 0.3 && (blockedX || blockedZ)) {
+      // Auto-saut : on avance contre un obstacle d'UN bloc et l'espace au-dessus est libre.
       if (this.canStepUp(world, dx, dz)) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;

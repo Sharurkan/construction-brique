@@ -108,6 +108,31 @@ describe('bloc d’émeraude (id 30)', () => {
   });
 });
 
+describe('eau (id 31)', () => {
+  it('acceptée dans les blocs et comme bloc choisi, rechargée dans le monde', () => {
+    const w = makeWorld({ selected: BlockId.Water });
+    w.blocks[2000] = BlockId.Water;
+    const v = validateSavedWorld(w);
+    expect(v).not.toBeNull();
+    expect(v!.selected).toBe(31);
+    expect(v!.blocks[2000]).toBe(31);
+    const world = new World();
+    world.load(v!.blocks);
+    expect(world.data[2000]).toBe(BlockId.Water);
+  });
+
+  it('une sauvegarde d’avant l’eau (ids 0 à 30) reste valide et identique', () => {
+    const w = makeWorld({ selected: BlockId.EmeraldBlock });
+    for (let i = 0; i <= 30; i++) w.blocks[3000 + i] = i;
+    const v = validateSavedWorld(structuredClone(w));
+    expect(v).not.toBeNull();
+    expect(v!.blocks).toEqual(w.blocks);
+    const world = new World();
+    world.load(v!.blocks);
+    expect(world.serialize()).toEqual(w.blocks);
+  });
+});
+
 describe('compatibilité : sauvegarde d’avant les minerais', () => {
   /** Monde tel que l’écrivait la version précédente : ids 0 à 22, Diamond = 11 et Gold = 12. */
   function legacyWorld(): SavedWorld {

@@ -36,7 +36,40 @@ describe('blocs', () => {
     ]).toEqual([23, 24, 25, 26, 27, 28, 29]);
     // Bloc plein d'émeraude : ajouté APRÈS les minerais.
     expect(BlockId.EmeraldBlock).toBe(30);
-    expect(BLOCK_COUNT).toBe(31);
+    // Eau : ajoutée à la fin.
+    expect(BlockId.Water).toBe(31);
+    expect(BLOCK_COUNT).toBe(32);
+  });
+
+  it('eau : non solide, transparente, cassable, dans la palette (près du sable)', () => {
+    const b = BLOCKS[BlockId.Water];
+    expect(b.solid).toBe(false);
+    expect(b.transparent).toBe(true);
+    expect(b.breakable).toBe(true);
+    expect(b.tiles).toEqual({ top: 'water', side: 'water', bottom: 'water' });
+    expect(isValidBlockId(31)).toBe(true);
+    expect(PALETTE.indexOf(BlockId.Water)).toBe(PALETTE.indexOf(BlockId.Sand) + 1);
+    const w = new World();
+    expect(w.setBlock(3, 5, 3, BlockId.Water)).toBe(true);
+    expect(w.isSolid(3, 5, 3)).toBe(false);
+    expect(w.isWater(3.5, 5.2, 3.9)).toBe(true);
+    expect(w.isWater(3, 6, 3)).toBe(false);
+    expect(w.setBlock(3, 5, 3, BlockId.Air)).toBe(true); // cassable
+  });
+
+  it('ancienne sauvegarde (sans eau) : rechargée telle quelle ; une sauvegarde avec eau (31) aussi', () => {
+    // Monde « d'avant l'eau » : ids 0..30 seulement.
+    const old = new World();
+    for (let id = 1; id <= 30; id++) old.setBlockRaw(id, 5, 5, id as BlockId);
+    const bytes = old.serialize();
+    const w = new World();
+    w.load(bytes);
+    for (let id = 1; id <= 30; id++) expect(w.getBlock(id, 5, 5)).toBe(id);
+    expect(w.serialize()).toEqual(bytes);
+    w.setBlock(40, 5, 5, BlockId.Water);
+    const w2 = new World();
+    w2.load(w.serialize());
+    expect(w2.getBlock(40, 5, 5)).toBe(BlockId.Water);
   });
 
   it('minerais et blocs pleins : dans la palette, opaques, solides, cassables, tuiles distinctes', () => {

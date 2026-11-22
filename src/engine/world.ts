@@ -116,13 +116,27 @@ export class World implements VoxelWorld {
     this.markAllDirty();
   }
 
+  /** Vrai si le bloc contenant le point (x, y, z) est de l'eau (nage du joueur, voile bleu). */
+  isWater(x: number, y: number, z: number): boolean {
+    return this.getBlock(x, y, z) === BlockId.Water;
+  }
+
+  /**
+   * Visée : depuis l'extérieur, l'eau arrête le rayon comme un bloc (on la casse, ou on pose
+   * contre elle). Si l'ŒIL est dans l'eau, l'eau qui l'entoure est traversée (on vise le fond
+   * ou la berge, pour construire sous l'eau) ; voir `ignore` dans raycastVoxels.
+   */
+  private eyeIgnore(origin: Vec3Like): number {
+    return this.getBlock(origin.x, origin.y, origin.z) === BlockId.Water ? BlockId.Water : -1;
+  }
+
   raycast(origin: Vec3Like, dir: Vec3Like, maxDist: number): RaycastHit | null {
-    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist);
+    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist, undefined, this.eyeIgnore(origin));
   }
 
   /** Comme raycast(), sans allocation : remplit et renvoie `out` (ou `null` si rien n'est touché). */
   raycastInto(origin: Vec3Like, dir: Vec3Like, maxDist: number, out: RaycastHit): RaycastHit | null {
-    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist, out);
+    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist, out, this.eyeIgnore(origin));
   }
 
   /** Lecture sans contrôle (coordonnées dans le volume), créée une fois pour le raycast. */

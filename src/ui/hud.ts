@@ -50,6 +50,7 @@ export const BLOCK_LABELS_FR: Readonly<Record<BlockId, string>> = {
   [BlockId.IronOre]: 'Minerai de fer',
   [BlockId.SilverOre]: "Minerai d'argent",
   [BlockId.EmeraldBlock]: "Bloc d'émeraude",
+  [BlockId.Water]: 'Eau',
 };
 
 export interface HudOptions {
