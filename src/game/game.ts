@@ -8,7 +8,7 @@ import { BLOCKS, PALETTE, World, WorldRenderer, findSpawn, generateWorld } from 
 import { InputManager } from '../controls/input';
 import { Player } from '../player/player';
 import { Hud } from '../ui/hud';
-import { createSaveStore } from '../platform/save';
+import { createSaveStore, hasPreviousSlot } from '../platform/save';
 import { createAutosave } from '../platform/autosave';
 import { registerPwa, requestFullscreenAndLandscape, requestPersistentStorage } from '../platform/pwa';
 import { WebAudioSoundPlayer } from '../audio/sound';
@@ -127,7 +127,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
   const particles = new BreakParticles(scene);
 
   // ---------- Sauvegarde ----------
-  const autosave = createAutosave(store, () => ({
+  const currentState = (): SavedWorld => ({
     version: SAVE_VERSION,
     sizeX: world.sizeX,
     sizeY: world.sizeY,
@@ -141,7 +141,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
     },
     selected,
     savedAt: Date.now(),
-  }));
+  });
+  const autosave = createAutosave(store, currentState);
   world.onChange(() => autosave.markDirty());
 
   // ---------- Sons ----------
@@ -199,6 +200,15 @@ export async function startGame(app: HTMLElement): Promise<void> {
       autosave.markDirty();
     },
     newWorld() {
+      // Copie du monde actuel dans l'emplacement « précédent » (restaurable depuis la zone
+      // parents). Instantané pris AVANT la régénération ; écriture en tâche de fond, échec ignoré.
+      if (hasPreviousSlot(store)) {
+        const snapshot = currentState();
+        void store
+          .savePrevious(snapshot)
+          .then(() => credits.setRestoreAvailable(true))
+          .catch((err: unknown) => console.warn('[nouveau monde] copie du monde précédent impossible', err));
+      }
       seed = randomSeed();
       generateWorld(world, seed);
       worldRenderer.rebuildAll();
@@ -237,13 +247,64 @@ export async function startGame(app: HTMLElement): Promise<void> {
   });
 
   // ---------- HUD, crédits ----------
-  const credits = new CreditsPanel(document.body, CREDITS_TEXT);
+  /** Remplace le monde en cours par une sauvegarde (blocs, graine, joueur, bloc choisi). */
+  const applySaved = (s: SavedWorld): boolean => {
+    if (s.sizeX !== world.sizeX || s.sizeY !== world.sizeY || s.sizeZ !== world.sizeZ) return false;
+    try {
+      world.load(s.blocks);
+    } catch {
+      return false;
+    }
+    seed = s.seed;
+    worldRenderer.rebuildAll();
+    player.setSpawn(findSpawn(world));
+    player.teleport(s.player.position);
+    player.state.yaw = s.player.yaw;
+    player.state.pitch = s.player.pitch;
+    if (PALETTE.includes(s.selected as BlockId)) {
+      selected = s.selected as BlockId;
+      hud?.select(selected, false);
+    }
+    return true;
+  };
+
+  // Restaurer = échanger courant ↔ précédent (un 2e appui annule la restauration).
+  let restoring = false;
+  const restorePrevious = async (): Promise<void> => {
+    if (restoring || !hasPreviousSlot(store)) return;
+    restoring = true;
+    credits.setRestoreBusy(true);
+    try {
+      await autosave.flush(); // aucune écriture du monde actuel ne doit passer APRÈS l'échange
+      const back = await store.swapWithPrevious(currentState());
+      if (!back || !applySaved(back)) return;
+      // Réécrit le monde restauré : écrase une éventuelle écriture lancée pendant l'échange.
+      autosave.markDirty();
+      void autosave.flush();
+      sfx('newWorld');
+    } catch (err) {
+      console.warn('[restauration] échec', err);
+    } finally {
+      restoring = false;
+      credits.setRestoreBusy(false);
+    }
+  };
+  const refreshRestoreButton = (): void => {
+    if (!hasPreviousSlot(store)) return;
+    void store.hasPrevious().then((has) => credits.setRestoreAvailable(has), () => {});
+  };
+
+  const credits = new CreditsPanel(document.body, CREDITS_TEXT, { onRestorePrevious: () => void restorePrevious() });
+  refreshRestoreButton();
   hud = new Hud(document.body, actions, PALETTE, (id) => BLOCKS[id].color, {
     initialSelected: selected,
     initialSoundOn: sound.enabled,
     onJumpChange: (down) => input.setButton('jump', down),
     onDescendChange: (down) => input.setButton('descend', down),
-    onCredits: () => credits.show(),
+    onCredits: () => {
+      refreshRestoreButton();
+      credits.show();
+    },
     onSoundToggle: (on) => {
       sound.setEnabled(on);
       sound.unlock();
