@@ -94,6 +94,25 @@ export interface CreditsPanelOptions {
   onRestorePrevious?: () => void;
 }
 
+/** Tablette barrée : WebGL indisponible (aucun texte, l'enfant ne lit pas forcément). */
+const NO_WEBGL_ICON =
+  '<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<rect x="18" y="12" width="60" height="72" rx="8" fill="#fff" stroke="#1d2433" stroke-width="5"/>' +
+  '<circle cx="48" cy="74" r="3.5" fill="#1d2433"/>' +
+  '<path d="M14 82 L82 14" stroke="#ff4f5a" stroke-width="9" stroke-linecap="round"/>' +
+  '</svg>';
+
+/** Écran de repli quand le rendu 3D ne peut pas démarrer : fond ciel + tablette barrée. */
+export function showNoWebGlScreen(parent: HTMLElement): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'cb-nowebgl';
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', 'Jeu indisponible sur cet appareil');
+  el.innerHTML = NO_WEBGL_ICON;
+  parent.appendChild(el);
+  return el;
+}
+
 /** Panneau des crédits (pour les parents) avec un gros bouton fermer. */
 export class CreditsPanel {
   private readonly el: HTMLDivElement;

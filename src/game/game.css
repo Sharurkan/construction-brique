@@ -128,3 +128,14 @@
 .cb-credits-restore:disabled { opacity: 0.5; }
 .cb-credits-restore svg { width: 36px; height: 36px; flex: none; pointer-events: none; }
 .cb-credits-restore:active { transform: translateY(2px); }
+
+/* ---------- Repli sans WebGL (sans texte) ---------- */
+.cb-nowebgl {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #4fb2ff 0%, #7ec8ff 55%, #b8e2ff 100%);
+}
+.cb-nowebgl svg { width: min(40vmin, 240px); height: min(40vmin, 240px); }

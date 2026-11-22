@@ -19,7 +19,7 @@ import { applyUiAssets } from './uiAssets';
 import { SOUNDS } from '../assets/manifest';
 import { BlockHighlight } from './highlight';
 import { BreakParticles } from './particles';
-import { CreditsPanel, isStartScreenVisible, showStartScreen } from './screens';
+import { CreditsPanel, isStartScreenVisible, showNoWebGlScreen, showStartScreen } from './screens';
 import { CREDITS_TEXT } from './credits';
 import { DebugOverlay } from './debug';
 import { PixelRatioAdjuster } from './pixelRatio';
@@ -81,10 +81,20 @@ export async function startGame(app: HTMLElement): Promise<void> {
   // Filet de sécurité si le geste arrive ailleurs que sur le bouton « jouer ».
   // pointerup (pas pointerdown) : c'est lui qui active le geste utilisateur au toucher.
   window.addEventListener('pointerup', firstGesture, { capture: true, once: true });
-  showStartScreen(document.body, firstGesture);
+  const startScreen = showStartScreen(document.body, firstGesture);
 
   // ---------- Three.js ----------
-  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  let renderer: THREE.WebGLRenderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  } catch (err) {
+    // WebGL indisponible (pilote, navigateur trop ancien…) : écran simple, sans texte.
+    console.error('[construction-brique] WebGL indisponible', err);
+    window.removeEventListener('pointerup', firstGesture, { capture: true });
+    startScreen.remove(); // l'écran de démarrage reste « affiché » pour la PWA : une mise à jour peut s'appliquer
+    showNoWebGlScreen(document.body);
+    return;
+  }
   // Pixel ratio : forcé par ?pr=, sinon plafonné puis réglé selon le temps moyen d'image.
   const pixelRatioAdjuster = forcedPixelRatio
     ? null
@@ -355,6 +365,17 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
   // ---------- Boucle ----------
   let raf = 0;
+  // Contexte WebGL perdu (GPU réinitialisé, appli en arrière-plan sur Android) : on empêche
+  // l'abandon définitif (preventDefault) et on remaille tout quand il revient.
+  let contextLost = false;
+  renderer.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    contextLost = true;
+  });
+  renderer.domElement.addEventListener('webglcontextrestored', () => {
+    contextLost = false;
+    worldRenderer.rebuildAll();
+  });
   let last = performance.now();
   let stepTimer = 0;
   let wasOnGround = player.onGround;
@@ -413,7 +434,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
     );
     boostRemesh = false;
 
-    renderer.render(scene, camera);
+    if (!contextLost) renderer.render(scene, camera);
     debugOverlay?.frame();
   };
 
