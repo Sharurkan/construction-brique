@@ -236,8 +236,8 @@ export class Hud {
       fly.setAttribute('aria-pressed', 'false');
       this.on(fly, 'click', () => {
         const before = this.flying;
-        // `toggleFly` est typé `void` dans le contrat mais peut renvoyer l'état réel.
-        const result: unknown = (this.actions.toggleFly as (() => unknown) | undefined)?.();
+        // Renvoie l'état réel ; si l'action ne renvoie rien, `nextFlyingState` bascule localement.
+        const result = this.actions.toggleFly?.();
         this.setFlying(nextFlyingState(result, before, this.flying));
       });
       this.bindPressVisual(fly);

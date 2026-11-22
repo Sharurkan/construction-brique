@@ -107,6 +107,8 @@ export interface InputState {
   /** Rotation demandée depuis la dernière frame, en radians. Remis à zéro par consumeLook(). */
   look: { yaw: number; pitch: number };
   jump: boolean;
+  /** Descendre en mode vol (Maj au clavier, bouton DESCENDRE en tactile). Absent = false. */
+  descend?: boolean;
 }
 
 export interface PlayerState {
@@ -122,7 +124,11 @@ export interface GameActions {
   selectBlock(id: BlockId): void;
   /** Déclenché uniquement après l'appui long sur le bouton « nouveau monde ». */
   newWorld(): void;
-  toggleFly?(): void;
+  /**
+   * Bascule le mode vol et renvoie le nouvel état réel (affiché par le HUD).
+   * Tolérance : une implémentation qui ne renvoie rien reste acceptée (le HUD bascule alors localement).
+   */
+  toggleFly?(): boolean | void;
 }
 
 // ---------- Sauvegarde ----------

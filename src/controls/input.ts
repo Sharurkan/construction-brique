@@ -11,13 +11,10 @@ import {
 export const NO_LOOK_ATTR = 'data-no-look';
 
 /**
- * État d'entrée étendu (interne à l'Agent D). `InputState` du contrat n'a pas de « descendre »
- * pour le mode vol : on l'ajoute ici, `Player.update` le lit s'il est présent.
+ * État d'entrée produit par `InputManager` : le contrat, avec `descend` toujours renseigné.
+ * (Alias conservé pour compatibilité ; `descend` fait désormais partie d'`InputState`.)
  */
-export interface ExtendedInputState extends InputState {
-  /** Descendre en mode vol (Maj au clavier, bouton dédié en tactile). */
-  descend: boolean;
-}
+export type ExtendedInputState = InputState & { descend: boolean };
 
 export interface InputOptions {
   /** Sensibilité du regard tactile, en radians par pixel. Défaut 0.0055. */
