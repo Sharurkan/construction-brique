@@ -43,7 +43,7 @@ export default defineConfig({
       workbox: {
         // Tout le build est précaché : le jeu doit marcher hors ligne après la 1re visite.
         globPatterns: ['**/*.{js,mjs,css,html,png,jpg,jpeg,webp,gif,svg,ico,ogg,mp3,wav,m4a,woff,woff2,ttf,json,txt}'],
-        globIgnores: ['**/demos/**', '**/node_modules/**', '**/assets/preview.html'],
+        globIgnores: ['**/demos/**', '**/node_modules/**'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: `${BASE}index.html`,
         navigateFallbackDenylist: [/\/demos\//],
