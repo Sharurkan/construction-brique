@@ -10,7 +10,7 @@
  * - jamais deux écritures concurrentes : une demande pendant une écriture est mise en file (une seule).
  */
 import type { SavedWorld, SaveStore } from '../core/types';
-import { hasEmergencySave } from './save';
+import { hasEmergencySave, hasPlayerSave } from './save';
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
@@ -40,9 +40,17 @@ export interface AutosaveOptions {
   onError?: (err: unknown) => void;
 }
 
+/**
+ * Nature d'une modification : `world` = blocs (écriture complète), `player` = position,
+ * regard ou bloc choisi seulement. Si le store sait écrire le joueur seul (`savePlayer`) et
+ * que les blocs n'ont pas changé depuis la dernière écriture complète réussie, seule cette
+ * petite partie est réécrite (pas les ~440 Ko de blocs).
+ */
+export type DirtyKind = 'world' | 'player';
+
 export interface Autosave {
-  /** Signale une modification du monde (ou du joueur) à sauvegarder. */
-  markDirty(): void;
+  /** Signale une modification à sauvegarder (défaut : `world`, écriture complète). */
+  markDirty(kind?: DirtyKind): void;
   /** Sauvegarde immédiatement si nécessaire ; résout quand l'écriture (et celle en file) est finie. */
   flush(): Promise<void>;
   /** Retire les écouteurs et minuteries. N'écrit pas : appeler `flush()` avant si besoin. */
@@ -83,6 +91,9 @@ export function createAutosave(
   let changeGen = 0;
   let confirmedGen = 0;
   let emergencyGen = 0;
+  /** Idem pour les seules modifications de blocs. */
+  let worldGen = 0;
+  let confirmedWorldGen = 0;
 
   function clearTimer(): void {
     if (timer !== null) {
@@ -110,9 +121,12 @@ export function createAutosave(
     const p = (async () => {
       try {
         const gen = changeGen;
+        const wGen = worldGen;
         const state = getState();
-        await store.save(state);
+        if (wGen === confirmedWorldGen && hasPlayerSave(store)) await store.savePlayer(state);
+        else await store.save(state);
         if (gen > confirmedGen) confirmedGen = gen;
+        if (wGen > confirmedWorldGen) confirmedWorldGen = wGen;
       } catch (err) {
         onError(err);
         // On réessaiera au prochain déclenchement (au plus tard maxIntervalMs).
@@ -144,10 +158,11 @@ export function createAutosave(
     return write();
   }
 
-  function markDirty(): void {
+  function markDirty(kind: DirtyKind = 'world'): void {
     if (disposed) return;
     dirty = true;
     changeGen++;
+    if (kind === 'world') worldGen++;
     schedule();
   }
 

@@ -91,6 +91,39 @@ export interface PreviousWorldCapable {
   swapWithPrevious(current: SavedWorld): Promise<SavedWorld | null>;
 }
 
+// ---------- Joueur seul (évite de réécrire les blocs à chaque déplacement) ----------
+
+/** Store capable d'écrire seulement la partie « joueur » d'un SavedWorld. */
+export interface PlayerSaveCapable {
+  /**
+   * Comme `save`, mais l'appelant garantit que les blocs n'ont pas changé depuis la dernière
+   * écriture complète réussie : le store peut n'écrire que joueur / bloc choisi / date.
+   */
+  savePlayer(world: SavedWorld): Promise<void>;
+}
+
+export function hasPlayerSave(store: SaveStore): store is SaveStore & PlayerSaveCapable {
+  return typeof (store as Partial<PlayerSaveCapable>).savePlayer === 'function';
+}
+
+/** Enregistrement « joueur seul », valable seulement pour l'enregistrement complet de même `savedAt`. */
+interface PlayerRecord {
+  worldSavedAt: number;
+  player: PlayerState;
+  selected: number;
+  savedAt: number;
+}
+
+/** Applique un enregistrement « joueur seul » s'il est valide, rattaché à `world` et plus récent. */
+export function mergePlayerRecord(world: SavedWorld, raw: unknown): SavedWorld {
+  if (!raw || typeof raw !== 'object') return world;
+  const o = raw as Record<string, unknown>;
+  if (o.worldSavedAt !== world.savedAt) return world;
+  if (!isFiniteNumber(o.savedAt) || o.savedAt < world.savedAt) return world;
+  const merged = validateSavedWorld({ ...world, player: o.player, selected: o.selected, savedAt: o.savedAt });
+  return merged ?? world;
+}
+
 export function hasPreviousSlot(store: SaveStore): store is SaveStore & PreviousWorldCapable {
   const s = store as Partial<PreviousWorldCapable>;
   return (
@@ -116,11 +149,15 @@ function isInvalidStateError(e: unknown): boolean {
   return !!e && typeof e === 'object' && (e as { name?: unknown }).name === 'InvalidStateError';
 }
 
-export class IndexedDbSaveStore implements SaveStore, PreviousWorldCapable {
+export class IndexedDbSaveStore implements SaveStore, PreviousWorldCapable, PlayerSaveCapable {
   private readonly dbName: string;
   private readonly storeName: string;
   private readonly key: string;
   private readonly previousKey: string;
+  /** Enregistrement « joueur seul » (position, regard, bloc choisi), clé `<clé>:player`. */
+  private readonly playerKey: string;
+  /** `savedAt` de l'enregistrement complet actuellement stocké (connu après load/save). */
+  private storedWorldSavedAt: number | null = null;
   private readonly factory: IDBFactory;
   private dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -129,6 +166,7 @@ export class IndexedDbSaveStore implements SaveStore, PreviousWorldCapable {
     this.storeName = opts.storeName ?? 'worlds';
     this.key = opts.key ?? 'current';
     this.previousKey = opts.previousKey ?? 'previous';
+    this.playerKey = `${this.key}:player`;
     const factory = opts.factory ?? (globalThis as { indexedDB?: IDBFactory }).indexedDB;
     if (!factory) throw new Error('IndexedDB indisponible');
     this.factory = factory;
@@ -255,11 +293,39 @@ export class IndexedDbSaveStore implements SaveStore, PreviousWorldCapable {
 
   async load(): Promise<SavedWorld | null> {
     try {
-      const raw = await this.tx('readonly', (s) => s.get(this.key));
-      return validateSavedWorld(raw);
+      const [raw, rawPlayer] = await this.run('readonly', (s) => {
+        const a = s.get(this.key);
+        const b = s.get(this.playerKey);
+        return () => [a.result, b.result] as const;
+      });
+      const world = validateSavedWorld(raw);
+      if (!world) return null;
+      this.storedWorldSavedAt = world.savedAt;
+      return mergePlayerRecord(world, rawPlayer);
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Écrit seulement joueur + bloc choisi, rattachés à l'enregistrement complet connu.
+   * Si aucun enregistrement complet n'a été lu ou écrit par cette instance : écriture complète.
+   * L'appelant garantit que `world.blocks` est identique aux blocs de la dernière écriture
+   * complète (cf. autosave).
+   */
+  async savePlayer(world: SavedWorld): Promise<void> {
+    const worldSavedAt = this.storedWorldSavedAt;
+    if (worldSavedAt === null) {
+      await this.save(world);
+      return;
+    }
+    const record: PlayerRecord = {
+      worldSavedAt,
+      player: world.player,
+      selected: world.selected,
+      savedAt: world.savedAt,
+    };
+    await this.tx('readwrite', (s) => s.put(record, this.playerKey));
   }
 
   async savePrevious(world: SavedWorld): Promise<void> {
@@ -285,18 +351,37 @@ export class IndexedDbSaveStore implements SaveStore, PreviousWorldCapable {
         if (!restored) return;
         s.put(current, this.previousKey);
         s.put(restored, this.key);
+        s.delete(this.playerKey);
       };
       return () => restored;
+    }).then((restored) => {
+      if (restored) this.storedWorldSavedAt = restored.savedAt;
+      return restored;
     });
   }
 
   async save(world: SavedWorld): Promise<void> {
-    // Le Uint8Array est stocké tel quel (clonage structuré).
-    await this.tx('readwrite', (s) => s.put(world, this.key));
+    // Le Uint8Array est stocké tel quel (clonage structuré). L'enregistrement « joueur seul »
+    // éventuel devient obsolète : supprimé dans la même transaction.
+    await this.run(
+      'readwrite',
+      (s) => {
+        s.put(world, this.key);
+        s.delete(this.playerKey);
+        return () => undefined;
+      },
+      true,
+    );
+    this.storedWorldSavedAt = world.savedAt;
   }
 
   async clear(): Promise<void> {
-    await this.tx('readwrite', (s) => s.delete(this.key));
+    await this.run('readwrite', (s) => {
+      s.delete(this.key);
+      s.delete(this.playerKey);
+      return () => undefined;
+    });
+    this.storedWorldSavedAt = null;
   }
 
   /** Accès bas niveau pour les tests (écrire des données corrompues). */
@@ -455,7 +540,7 @@ export function hasEmergencySave(store: SaveStore): store is SaveStore & Emergen
  * - l'urgence est effacée dès qu'une écriture principale confirmée est au moins aussi récente ;
  * - urgence corrompue : ignorée (puis effacée à la prochaine écriture principale).
  */
-export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable, PreviousWorldCapable {
+export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable, PreviousWorldCapable, PlayerSaveCapable {
   readonly primary: SaveStore;
   private readonly emergency: LocalStorageSaveStore;
   /** `false` quand on sait qu'aucune urgence n'est stockée (évite de relire localStorage). */
@@ -507,6 +592,16 @@ export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable
       /* ignoré */
     }
     await this.primary.clear();
+  }
+
+  async savePlayer(world: SavedWorld): Promise<void> {
+    // Urgence possiblement présente : ses blocs peuvent ne pas être dans le store principal
+    // (recopie en cours ou ratée) → écriture complète, qui efface ensuite l'urgence.
+    if (this.emergencyMaybePresent || !hasPlayerSave(this.primary)) {
+      await this.save(world);
+      return;
+    }
+    await this.primary.savePlayer(world);
   }
 
   async savePrevious(world: SavedWorld): Promise<void> {

@@ -7,6 +7,7 @@ import {
   EmergencyBackedSaveStore,
   hasEmergencySave,
   hasPreviousSlot,
+  mergePlayerRecord,
   IndexedDbSaveStore,
   LocalStorageSaveStore,
   MemorySaveStore,
@@ -448,5 +449,68 @@ describe('IndexedDB : connexion fermée par le navigateur', () => {
     const db2 = await s.open();
     expect(db2).not.toBe(db1);
     db1.close();
+  });
+});
+
+describe('IndexedDB : enregistrement « joueur seul »', () => {
+  it('savePlayer sans enregistrement complet connu → écriture complète', async () => {
+    const s = freshIdb();
+    await s.savePlayer(makeWorld({ seed: 3, savedAt: 1000 }));
+    expect((await s.load())?.seed).toBe(3);
+  });
+
+  it('après save : n’écrit que le joueur, fusionné au chargement (même dans une autre instance)', async () => {
+    const name = `test-db-player-${++dbCounter}`;
+    const s = new IndexedDbSaveStore({ dbName: name });
+    const w = makeWorld({ savedAt: 1000 });
+    await s.save(w);
+    const moved = makeWorld({
+      savedAt: 2000,
+      selected: 5,
+      player: { position: { x: 10.5, y: 30, z: 20.5 }, yaw: 0.5, pitch: 0.1 },
+      blocks: new Uint8Array(w.blocks.length), // ignorés : seuls joueur / sélection sont écrits
+    });
+    await s.savePlayer(moved);
+    const back = await new IndexedDbSaveStore({ dbName: name }).load();
+    expect(back?.player.position).toEqual({ x: 10.5, y: 30, z: 20.5 });
+    expect(back?.selected).toBe(5);
+    expect(back?.savedAt).toBe(2000);
+    expect(back?.blocks).toEqual(w.blocks); // blocs de l'écriture complète
+  });
+
+  it('écriture complète suivante : l’enregistrement joueur obsolète est supprimé', async () => {
+    const s = freshIdb();
+    await s.save(makeWorld({ savedAt: 1000 }));
+    await s.savePlayer(makeWorld({ savedAt: 2000, selected: 5 }));
+    await s.save(makeWorld({ savedAt: 3000, selected: 7 }));
+    const back = await s.load();
+    expect(back?.selected).toBe(7);
+    expect(back?.savedAt).toBe(3000);
+  });
+
+  it('enregistrement joueur rattaché à un autre monde ou invalide : ignoré', () => {
+    const w = makeWorld({ savedAt: 1000 });
+    const p = { position: { x: 1, y: 2, z: 3 }, yaw: 0, pitch: 0 };
+    expect(mergePlayerRecord(w, { worldSavedAt: 999, player: p, selected: 2, savedAt: 2000 })).toBe(w);
+    expect(mergePlayerRecord(w, { worldSavedAt: 1000, player: { position: { x: NaN } }, selected: 2, savedAt: 2000 })).toBe(w);
+    expect(mergePlayerRecord(w, { worldSavedAt: 1000, player: p, selected: 2, savedAt: 500 })).toBe(w);
+    expect(mergePlayerRecord(w, null)).toBe(w);
+    expect(mergePlayerRecord(w, { worldSavedAt: 1000, player: p, selected: 2, savedAt: 2000 }).player.position.z).toBe(3);
+  });
+
+  it('ancienne sauvegarde (sans enregistrement joueur) : se recharge telle quelle', async () => {
+    const s = freshIdb();
+    await s.putRaw(makeWorld({ seed: 42 }));
+    expect((await s.load())?.seed).toBe(42);
+  });
+
+  it('enveloppe d’urgence : urgence présente → savePlayer devient une écriture complète', async () => {
+    const storage = new FakeStorage();
+    const s = new EmergencyBackedSaveStore(freshIdb(), storage);
+    await s.save(makeWorld({ seed: 1, savedAt: 1000 }));
+    s.saveEmergency(makeWorld({ seed: 2, savedAt: 2000 }));
+    await s.savePlayer(makeWorld({ seed: 2, savedAt: 3000 }));
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).toBeNull();
+    expect((await s.load())?.seed).toBe(2);
   });
 });

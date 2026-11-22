@@ -150,7 +150,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
     sizeY: world.sizeY,
     sizeZ: world.sizeZ,
     seed,
-    blocks: world.serialize(),
+    // Copie partagée, recalculée seulement après un changement de bloc (sauvegarde fréquente).
+    blocks: world.snapshot(),
     player: {
       position: { ...player.state.position },
       yaw: player.state.yaw,
@@ -161,6 +162,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
   });
   const autosave = createAutosave(store, currentState);
   world.onChange(() => autosave.markDirty());
+  // Monde tout juste généré : jamais écrit, il faut une écriture complète.
+  if (!restored) autosave.markDirty();
 
   // ---------- Sons ----------
   // Le HUD signale chaque appui (clic) ; si l'appui déclenche aussi un vrai son
@@ -214,7 +217,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
     selectBlock(id) {
       selected = id;
       sfx('select');
-      autosave.markDirty();
+      autosave.markDirty('player');
     },
     newWorld() {
       // Copie du monde actuel dans l'emplacement « précédent » (restaurable depuis la zone
@@ -388,7 +391,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
         lastSavedPos.x = p.x;
         lastSavedPos.y = p.y;
         lastSavedPos.z = p.z;
-        autosave.markDirty();
+        autosave.markDirty('player'); // position seule : les blocs ne sont pas réécrits
       }
     }
 

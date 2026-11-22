@@ -37,6 +37,8 @@ export class World implements VoxelWorld {
   private readonly listeners = new Set<ChangeListener>();
   /** Chunks à remailler, clé = cx + chunksX * (cz + chunksZ * cy). */
   private readonly dirty = new Set<number>();
+  /** Copie des blocs partagée par snapshot(), invalidée à chaque modification. */
+  private snapshotCache: Uint8Array | null = null;
 
   constructor(sizeX = WORLD_SIZE_X, sizeY = WORLD_SIZE_Y, sizeZ = WORLD_SIZE_Z) {
     if (sizeX % CHUNK_SIZE || sizeY % CHUNK_SIZE || sizeZ % CHUNK_SIZE) {
@@ -91,6 +93,7 @@ export class World implements VoxelWorld {
     if (current === id) return false;
     if (current !== BlockId.Air && !BLOCKS[current].breakable) return false;
     this.data[i] = id;
+    this.snapshotCache = null;
     this.markBlockDirty(x, y, z);
     for (const cb of this.listeners) cb(x, y, z, id);
     return true;
@@ -103,11 +106,13 @@ export class World implements VoxelWorld {
   setBlockRaw(x: number, y: number, z: number, id: BlockId): void {
     if (!this.inBounds(x, y, z)) return;
     this.data[x + this.sizeX * (z + this.sizeZ * y)] = id;
+    this.snapshotCache = null;
   }
 
   /** Vide le monde (tout en Air) et marque tous les chunks. */
   clear(): void {
     this.data.fill(BlockId.Air);
+    this.snapshotCache = null;
     this.markAllDirty();
   }
 
@@ -137,6 +142,15 @@ export class World implements VoxelWorld {
     return this.data.slice();
   }
 
+  /**
+   * Comme serialize(), mais la copie est PARTAGÉE et réutilisée tant qu'aucun bloc ne change
+   * (sauvegarde fréquente sans recopier ~440 Ko). Ne pas la modifier.
+   */
+  snapshot(): Uint8Array {
+    if (!this.snapshotCache) this.snapshotCache = this.data.slice();
+    return this.snapshotCache;
+  }
+
   load(data: Uint8Array): void {
     if (data.length !== this.data.length) {
       throw new Error(`Taille de sauvegarde invalide : ${data.length} au lieu de ${this.data.length}`);
@@ -145,6 +159,7 @@ export class World implements VoxelWorld {
       // Valeurs inconnues (sauvegarde corrompue / future) → Air.
       this.data[i] = data[i] < BLOCK_COUNT ? data[i] : BlockId.Air;
     }
+    this.snapshotCache = null;
     this.markAllDirty();
   }
 
