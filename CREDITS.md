@@ -59,6 +59,11 @@ CC0, donc CC0 elle aussi. Le fichier `glass_frame.png` est livré tel quel.
 
 Les petits cubes de la palette sont dessinés avec ces mêmes textures.
 
+Le ciel (nuages, soleil, montgolfières, arc-en-ciel, oiseaux et dragon) est construit
+**uniquement avec des cubes** texturés par ces mêmes tuiles du Voxel Pack : la laine
+(`wool.png`, teintée en couleurs) et les planches (`planks.png`). Les formes sont
+assemblées par le code du jeu (`src/game/sky/`) ; aucune image n'a été ajoutée pour le ciel.
+
 Icône de l'application (`icons/icon-*.png`, `icons/apple-touch-icon-180.png`,
 `favicon.png`) : un cube dessiné avec `grass_top.png` et `grass_side.png` du
 Voxel Pack, sur fond bleu ciel (œuvre dérivée, CC0 elle aussi).
