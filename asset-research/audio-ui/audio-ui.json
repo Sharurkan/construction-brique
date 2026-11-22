@@ -1,0 +1,303 @@
+{
+  "sounds": [
+    {
+      "id": "kenney-impact-interface-jingles",
+      "name": "Kenney : Impact Sounds + Interface Sounds + UI Audio + Music Jingles",
+      "author": "Kenney (kenney.nl)",
+      "license": "CC0 1.0 (domaine public)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://kenney.nl/assets/impact-sounds",
+      "downloadUrl": "https://kenney.nl/assets/impact-sounds",
+      "description": "Quatre packs Kenney complémentaires : impacts par matière (bois, planche, verre, pierre/minage, doux) et pas (herbe, bois, neige...) pour casser/poser/marcher ; Interface Sounds et UI Audio pour les clics et la palette ; Music Jingles (pizzicato, steel drum) pour le jingle « nouveau monde ». Pages : https://kenney.nl/assets/interface-sounds , https://kenney.nl/assets/ui-audio , https://kenney.nl/assets/music-jingles",
+      "pros": [
+        "CC0 vérifié sur chaque page Kenney (« Creative Commons CC0 »), aucune attribution obligatoire",
+        "Variantes par matière (bois, verre, minage, doux) et 5 variantes par son pour éviter la répétition",
+        "Pas sur herbe, bois, neige, moquette, béton : parfait pour un monde de blocs",
+        "Sons courts en .ogg, légers, cohérents entre eux",
+        "Jingles pizzicato / steel drum très joyeux, adaptés aux 5–7 ans"
+      ],
+      "cons": [
+        "Pas de vrai son « saut » dédié : utiliser un pluck/maximize d'Interface Sounds ou un impactSoft",
+        "Certains impacts (Punch, Metal heavy) sont un peu secs : à écarter pour garder un ton doux",
+        "Les extraits individuels sont servis par des dépôts GitHub tiers qui redistribuent les fichiers Kenney (contenu identique, CC0) ; télécharger le pack officiel sur kenney.nl"
+      ],
+      "attribution": "Effets sonores : « Impact Sounds », « Interface Sounds », « UI Audio » et « Music Jingles » par Kenney (www.kenney.nl), licence CC0 1.0.",
+      "previewImages": [
+        { "url": "https://kenney.nl/media/pages/assets/impact-sounds/37d145475f-1677589720/audio_impact.png", "caption": "Aperçu du pack Impact Sounds" },
+        { "url": "https://kenney.nl/media/pages/assets/interface-sounds/428fc5f14c-1677589445/preview_interface.png", "caption": "Aperçu du pack Interface Sounds" },
+        { "url": "https://kenney.nl/media/pages/assets/ui-audio/2dbeff8f75-1677590482/preview-6.png", "caption": "Aperçu du pack UI Audio" },
+        { "url": "https://kenney.nl/media/pages/assets/music-jingles/ef8668e122-1677590390/preview-5.png", "caption": "Aperçu du pack Music Jingles" }
+      ],
+      "audioSamples": [
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/impactWood_medium_000.ogg", "caption": "casser un bloc de bois (impactWood_medium)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/impactPlank_medium_000.ogg", "caption": "casser un bloc de planches (impactPlank_medium)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/impactMining_000.ogg", "caption": "casser un bloc de pierre (impactMining)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/impactGlass_light_000.ogg", "caption": "casser un bloc de verre (impactGlass_light)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/impactSoft_medium_000.ogg", "caption": "casser un bloc d'herbe/terre (impactSoft_medium)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/impactGeneric_light_000.ogg", "caption": "poser un bloc (impactGeneric_light)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/footstep_grass_000.ogg", "caption": "pas sur l'herbe (footstep_grass)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/impact/footstep_wood_000.ogg", "caption": "pas sur le bois (footstep_wood)" },
+        { "url": "https://raw.githubusercontent.com/ShadowBlip/OpenGamepadUI/main/assets/audio/interface/maximize_001.ogg", "caption": "saut (Interface Sounds maximize_001, « boing » montant)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/ui/click1.ogg", "caption": "clic d'interface doux (UI Audio click1)" },
+        { "url": "https://raw.githubusercontent.com/ShadowBlip/OpenGamepadUI/main/assets/audio/interface/select_001.ogg", "caption": "sélection dans la palette (Interface Sounds select_001)" },
+        { "url": "https://raw.githubusercontent.com/ShadowBlip/OpenGamepadUI/main/assets/audio/interface/pluck_001.ogg", "caption": "sélection dans la palette, variante pluck (Interface Sounds pluck_001)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/pizzicato_jingles/jingles_PIZZI00.ogg", "caption": "jingle « nouveau monde » pizzicato (Music Jingles)" },
+        { "url": "https://raw.githubusercontent.com/iree-gd/iree.gd/main/sample/assets/audio/steel_jingles/jingles_STEEL00.ogg", "caption": "jingle « nouveau monde » steel drum (Music Jingles)" },
+        { "url": "https://kenney.nl/media/pages/assets/impact-sounds/4ef56f2408-1677589755/foley-preview.ogg", "caption": "aperçu officiel du pack Impact Sounds (kenney.nl)" },
+        { "url": "https://kenney.nl/media/pages/assets/interface-sounds/f84eee9fab-1677589472/preview.ogg", "caption": "aperçu officiel du pack Interface Sounds (kenney.nl)" },
+        { "url": "https://kenney.nl/media/pages/assets/music-jingles/5d3327d2da-1677590394/preview-5.ogg", "caption": "aperçu officiel du pack Music Jingles (kenney.nl)" }
+      ],
+      "fontFamilyCss": ""
+    },
+    {
+      "id": "oga-rubberduck-100-cc0-sfx",
+      "name": "100 CC0 SFX + 100 CC0 SFX #2 (OpenGameArt)",
+      "author": "rubberduck (OpenGameArt)",
+      "license": "CC0 1.0 (domaine public)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://opengameart.org/content/100-cc0-sfx",
+      "downloadUrl": "https://opengameart.org/sites/default/files/100-CC0-SFX_0.zip",
+      "description": "Deux packs de 100 bruitages variés chacun (impacts, pops, clics, objets) publiés en CC0 sur OpenGameArt. Second pack : https://opengameart.org/content/100-cc0-sfx-2 (zip : https://opengameart.org/sites/default/files/sfx_100_v2.zip).",
+      "pros": [
+        "CC0 affiché sur les pages OpenGameArt",
+        "200 sons au total : bon réservoir pour pops, clics et petits impacts",
+        "Complément utile si un son Kenney manque"
+      ],
+      "cons": [
+        "Pas de jingle musical : à combiner avec Kenney Music Jingles",
+        "Pas organisé par matière de bloc (bois/pierre/verre) : tri manuel nécessaire",
+        "Seul un montage d'aperçu est écoutable en ligne, pas de fichier individuel ; qualité/ton à vérifier un par un (certains sons plus agressifs)"
+      ],
+      "attribution": "Effets sonores : « 100 CC0 SFX » et « 100 CC0 SFX #2 » par rubberduck (opengameart.org), licence CC0 1.0.",
+      "previewImages": [
+        { "url": "https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/sfx_prev_0.ogg.png", "caption": "Forme d'onde de l'aperçu 100 CC0 SFX" }
+      ],
+      "audioSamples": [
+        { "url": "https://opengameart.org/sites/default/files/sfx_prev_0.ogg", "caption": "montage d'aperçu du pack 100 CC0 SFX (ogg)" },
+        { "url": "https://opengameart.org/sites/default/files/audio_preview/sfx_prev_0.ogg.mp3", "caption": "montage d'aperçu du pack 100 CC0 SFX (mp3)" },
+        { "url": "https://opengameart.org/sites/default/files/sfx100v2_prev.ogg", "caption": "montage d'aperçu du pack 100 CC0 SFX #2 (ogg)" }
+      ],
+      "fontFamilyCss": ""
+    },
+    {
+      "id": "freesound-cc0-selection",
+      "name": "Sélection Freesound CC0 (son par son)",
+      "author": "Divers auteurs Freesound (voir attribution)",
+      "license": "CC0 1.0 (vérifié sur la page de chaque son)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://freesound.org/search/?q=pop&f=license%3A%22Creative+Commons+0%22",
+      "downloadUrl": "https://freesound.org/people/Kastenfrosch/sounds/521949/",
+      "description": "Sélection de sons individuels Freesound, tous marqués CC0 sur leur page : plop pour poser, bris de verre, gravats de pierre, pas dans l'herbe, rebond pour le saut, clic doux, blip positif et jingle de réussite.",
+      "pros": [
+        "Chaque son vérifié CC0 sur sa propre page Freesound",
+        "Sons plus « cartoon » (Plop, Bounce, Success Jingle) très adaptés aux enfants",
+        "Aperçus mp3 écoutables directement"
+      ],
+      "cons": [
+        "Hétérogène (auteurs, volumes, qualités différents) : normalisation et découpe nécessaires",
+        "Téléchargement de l'original nécessite un compte Freesound",
+        "Gravats de pierre et pas sur gravier/herbe sont des enregistrements longs à découper ; bris de verre réaliste à adoucir",
+        "Pas de son bois propre et doux trouvé : « Smash » est générique"
+      ],
+      "attribution": "Sons Freesound (CC0 1.0) : « Plop! » par Breviceps ; « Smash.ogg » par egomassive ; « Bricks/Stones/Rocks/Gravel Falling » par iwanPlays ; « breaking_small_window.wav » par MikaF ; « Going on a forest road gravel and grass.wav » par straget ; « Bounce » par Jofae ; « Soft UI Button Click » par Jummit ; « Positive Blip Effect » par CogFireStudios ; « Success Jingle » par Kastenfrosch (freesound.org).",
+      "previewImages": [
+        { "url": "https://cdn.freesound.org/displays/521/521949_311243_wave_bw_L.png", "caption": "Forme d'onde de « Success Jingle » (Kastenfrosch)" }
+      ],
+      "audioSamples": [
+        { "url": "https://cdn.freesound.org/previews/447/447910_9159316-hq.mp3", "caption": "poser un bloc – « Plop! » par Breviceps (freesound.org/people/Breviceps/sounds/447910/)" },
+        { "url": "https://cdn.freesound.org/previews/536/536777_1415754-hq.mp3", "caption": "casser un bloc de bois (générique) – « Smash.ogg » par egomassive (sounds/536777)" },
+        { "url": "https://cdn.freesound.org/previews/567/567249_7108319-hq.mp3", "caption": "casser un bloc de pierre – « Bricks/Stones/Rocks/Gravel Falling » par iwanPlays (sounds/567249)" },
+        { "url": "https://cdn.freesound.org/previews/163/163364_170404-hq.mp3", "caption": "casser un bloc de verre – « breaking_small_window » par MikaF (sounds/163364)" },
+        { "url": "https://cdn.freesound.org/previews/411/411206_7707368-hq.mp3", "caption": "pas dans l'herbe/gravier – par straget (sounds/411206)" },
+        { "url": "https://cdn.freesound.org/previews/383/383240_6512973-hq.mp3", "caption": "saut – « Bounce » par Jofae (sounds/383240)" },
+        { "url": "https://cdn.freesound.org/previews/528/528561_10360410-hq.mp3", "caption": "clic d'interface doux – « Soft UI Button Click » par Jummit (sounds/528561)" },
+        { "url": "https://cdn.freesound.org/previews/531/531512_7614679-hq.mp3", "caption": "sélection dans la palette – « Positive Blip Effect » par CogFireStudios (sounds/531512)" },
+        { "url": "https://cdn.freesound.org/previews/521/521949_311243-hq.mp3", "caption": "jingle « nouveau monde » – « Success Jingle » par Kastenfrosch (sounds/521949)" }
+      ],
+      "fontFamilyCss": ""
+    }
+  ],
+  "icons": [
+    {
+      "id": "kenney-mobile-controls",
+      "name": "Kenney Mobile Controls (ex « Onscreen Controls »)",
+      "author": "Kenney (kenney.nl)",
+      "license": "CC0 1.0 (domaine public)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://kenney.nl/assets/mobile-controls",
+      "downloadUrl": "https://kenney.nl/assets/mobile-controls",
+      "description": "900 éléments de contrôles tactiles : joysticks virtuels (base + manette), boutons ronds/carrés, flèches, icônes d'action, en plusieurs couleurs et styles. L'ancienne page « onscreen-controls » redirige vers ce pack.",
+      "pros": [
+        "CC0 vérifié sur la page Kenney",
+        "Joystick virtuel prêt à l'emploi (base + bouton), pensé pour tablette",
+        "Gros boutons lisibles, flèches haut/bas pour sauter/voler",
+        "Style cohérent avec les autres packs Kenney"
+      ],
+      "cons": [
+        "Pas d'icône pioche/bloc spécifique : compléter avec Game Icons ou game-icons.net",
+        "Style assez sobre (gris/blanc) : préférer les variantes colorées pour les enfants"
+      ],
+      "attribution": "Icônes de contrôle : « Mobile Controls » par Kenney (www.kenney.nl), licence CC0 1.0.",
+      "previewImages": [
+        { "url": "https://kenney.nl/media/pages/assets/mobile-controls/90787b1c18-1754738442/preview.png", "caption": "Aperçu du pack Mobile Controls" },
+        { "url": "https://kenney.nl/media/pages/assets/mobile-controls/616d64eeba-1754738447/sample.png", "caption": "Exemple d'utilisation (joystick et boutons)" }
+      ],
+      "audioSamples": [],
+      "fontFamilyCss": ""
+    },
+    {
+      "id": "kenney-game-icons-ui-pack",
+      "name": "Kenney Game Icons + UI Pack + Board Game Icons",
+      "author": "Kenney (kenney.nl)",
+      "license": "CC0 1.0 (domaine public)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://kenney.nl/assets/game-icons",
+      "downloadUrl": "https://kenney.nl/assets/game-icons",
+      "description": "Game Icons (105 icônes : son on/off, plein écran, maison, étoile, info, flèches...), UI Pack (430 éléments : boutons colorés ronds et carrés) et Board Game Icons (250 icônes : main, cubes, pions...). Pages : https://kenney.nl/assets/ui-pack , https://kenney.nl/assets/board-game-icons",
+      "pros": [
+        "CC0 vérifié sur chaque page",
+        "Couvre son on/off, plein écran, maison/étoile (nouveau monde), info (crédits), flèches",
+        "UI Pack fournit des fonds de boutons très colorés et arrondis, adaptés aux enfants",
+        "Board Game Icons contient main et cubes utiles pour « poser un bloc »"
+      ],
+      "cons": [
+        "Icônes Game Icons monochromes (blanc/noir) : à poser sur les boutons colorés du UI Pack",
+        "Pas de pioche dans Game Icons : prendre la pioche de game-icons.net ou un marteau"
+      ],
+      "attribution": "Icônes et boutons : « Game Icons », « UI Pack » et « Board Game Icons » par Kenney (www.kenney.nl), licence CC0 1.0.",
+      "previewImages": [
+        { "url": "https://kenney.nl/media/pages/assets/game-icons/349f36a54d-1677661575/preview.png", "caption": "Aperçu Game Icons" },
+        { "url": "https://kenney.nl/media/pages/assets/ui-pack/ab9e396e4d-1718203978/preview.png", "caption": "Aperçu UI Pack (boutons colorés)" },
+        { "url": "https://kenney.nl/media/pages/assets/ui-pack/249266460a-1718203984/sample.png", "caption": "Exemple d'interface avec UI Pack" },
+        { "url": "https://kenney.nl/media/pages/assets/board-game-icons/d5c5bd2f28-1674933139/preview.png", "caption": "Aperçu Board Game Icons" }
+      ],
+      "audioSamples": [],
+      "fontFamilyCss": ""
+    },
+    {
+      "id": "game-icons-net",
+      "name": "game-icons.net",
+      "author": "Lorc, Delapouite et contributeurs (game-icons.net)",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "sourceUrl": "https://game-icons.net/",
+      "downloadUrl": "https://game-icons.net/",
+      "description": "Plus de 4000 icônes SVG de jeu, téléchargeables à l'unité avec couleur de fond et de trait personnalisables sur le site. Couvre précisément pioche, marteau, briques, cube, joystick, maison, planète, étoile, aile, cœur, info, plein écran, son on/off.",
+      "pros": [
+        "Icône exacte pour chaque besoin, y compris la pioche (« mining ») et les briques",
+        "SVG vectoriel : net à toutes les tailles sur tablette",
+        "Couleurs personnalisables sur le site avant téléchargement"
+      ],
+      "cons": [
+        "CC BY 3.0 : attribution obligatoire, avec le nom de l'auteur de CHAQUE icône utilisée (Lorc, Delapouite...)",
+        "Style silhouette plat : moins « enfantin » que Kenney, à placer sur des boutons colorés",
+        "Les URLs d'aperçu en couleur personnalisée ne sont pas publiques (seul blanc sur noir l'est)"
+      ],
+      "attribution": "Icônes de game-icons.net, licence CC BY 3.0 : « Mining », « Claw hammer », « Feathered wing », « Heart inside » par Lorc ; « Joystick », « Brick pile », « Cube », « House », « Earth Africa Europe », « Falling star », « Info », « Expand », « Sound on », « Sound off », « Plain arrow » par Delapouite (https://game-icons.net).",
+      "previewImages": [
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/joystick.svg", "caption": "joystick (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/lorc/mining.svg", "caption": "casser : pioche « mining » (Lorc)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/lorc/claw-hammer.svg", "caption": "casser : marteau (Lorc)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/brick-pile.svg", "caption": "poser : briques (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/cube.svg", "caption": "poser : cube (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/plain-arrow.svg", "caption": "sauter : flèche (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/lorc/feathered-wing.svg", "caption": "voler : aile (Lorc)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/house.svg", "caption": "nouveau monde : maison (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/earth-africa-europe.svg", "caption": "nouveau monde : planète (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/falling-star.svg", "caption": "nouveau monde : étoile (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/lorc/heart-inside.svg", "caption": "crédits : cœur (Lorc)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/info.svg", "caption": "crédits : info (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/expand.svg", "caption": "plein écran (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/sound-on.svg", "caption": "son activé (Delapouite)" },
+        { "url": "https://game-icons.net/icons/ffffff/000000/1x1/delapouite/sound-off.svg", "caption": "son coupé (Delapouite)" }
+      ],
+      "audioSamples": [],
+      "fontFamilyCss": ""
+    }
+  ],
+  "fonts": [
+    {
+      "id": "andika",
+      "name": "Andika",
+      "author": "SIL International",
+      "license": "SIL Open Font License 1.1 (noms réservés « Andika » et « SIL »)",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/andika/OFL.txt",
+      "sourceUrl": "https://software.sil.org/andika/",
+      "downloadUrl": "https://github.com/google/fonts/tree/main/ofl/andika",
+      "description": "Police sans empattement conçue spécialement pour l'apprentissage de la lecture : lettres non ambiguës (a et g « scolaires », I/l/1 distincts).",
+      "pros": [
+        "Conçue pour les lecteurs débutants : idéale pour les 5–7 ans",
+        "OFL 1.1, fichiers TTF embarquables localement (Regular, Bold, Italic)",
+        "Excellente couverture des accents français"
+      ],
+      "cons": [
+        "Moins arrondie et « ludique » que Fredoka",
+        "Nom réservé : si on modifie la police, il faut la renommer"
+      ],
+      "attribution": "Police Andika par SIL International, licence SIL Open Font License 1.1 (https://openfontlicense.org).",
+      "previewImages": [
+        { "url": "https://raw.githubusercontent.com/silnrsi/font-andika/master/documentation/assets/images/AndikaTypeSample.png", "caption": "Spécimen Andika" },
+        { "url": "https://raw.githubusercontent.com/silnrsi/font-andika/master/documentation/assets/images/weights.png", "caption": "Graisses disponibles" }
+      ],
+      "audioSamples": [],
+      "fontFamilyCss": "https://raw.githubusercontent.com/google/fonts/main/ofl/andika/Andika-Regular.ttf"
+    },
+    {
+      "id": "fredoka",
+      "name": "Fredoka",
+      "author": "Milena Brandão, Hafontia (The Fredoka Project Authors)",
+      "license": "SIL Open Font License 1.1",
+      "licenseUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/OFL.txt",
+      "sourceUrl": "https://github.com/google/fonts/tree/main/ofl/fredoka",
+      "downloadUrl": "https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/Fredoka%5Bwdth,wght%5D.ttf",
+      "description": "Police ronde, épaisse et amicale (successeur de Fredoka One), police variable (graisse et largeur) en un seul fichier TTF.",
+      "pros": [
+        "Très arrondie et joyeuse : colle parfaitement à un jeu de blocs pour enfants",
+        "Grande lisibilité en gros titres et boutons",
+        "OFL 1.1, un seul fichier variable à embarquer"
+      ],
+      "cons": [
+        "Moins adaptée aux textes longs (crédits) qu'Andika",
+        "Formes « a » et « g » non scolaires"
+      ],
+      "attribution": "Police Fredoka par Milena Brandão et Hafontia (The Fredoka Project Authors), licence SIL Open Font License 1.1 (https://openfontlicense.org).",
+      "previewImages": [
+        { "url": "https://raw.githubusercontent.com/hafontia/Fredoka-One/gh-pages/documentation/1.png", "caption": "Spécimen Fredoka One (prédécesseur de Fredoka, même dessin)" },
+        { "url": "https://raw.githubusercontent.com/hafontia/Fredoka-One/gh-pages/documentation/2.png", "caption": "Spécimen Fredoka One, glyphes" }
+      ],
+      "audioSamples": [],
+      "fontFamilyCss": "https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/Fredoka%5Bwdth,wght%5D.ttf"
+    },
+    {
+      "id": "kenney-fonts",
+      "name": "Kenney Fonts (Kenney Blocks, Future, Rocket, Mini...)",
+      "author": "Kenney (kenney.nl)",
+      "license": "CC0 1.0 (domaine public)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://kenney.nl/assets/kenney-fonts",
+      "downloadUrl": "https://kenney.nl/assets/kenney-fonts",
+      "description": "12 polices TTF de Kenney, dont « Kenney Blocks » (lettres en blocs, clin d'œil au thème) et « Kenney Future » (titres).",
+      "pros": [
+        "CC0 vérifié sur la page Kenney : aucune contrainte",
+        "« Kenney Blocks » colle au thème construction pour un titre ou un logo",
+        "Même univers graphique que les icônes/sons Kenney"
+      ],
+      "cons": [
+        "Moins lisible pour des lecteurs débutants : réserver au titre/logo",
+        "Couverture des accents français à vérifier police par police",
+        "Fichier d'aperçu servi par un dépôt GitHub tiers qui redistribue le pack (télécharger l'officiel sur kenney.nl)"
+      ],
+      "attribution": "Police « Kenney Blocks » (Kenney Fonts) par Kenney (www.kenney.nl), licence CC0 1.0.",
+      "previewImages": [
+        { "url": "https://kenney.nl/media/pages/assets/kenney-fonts/703183582c-1677661704/preview.png", "caption": "Aperçu du pack Kenney Fonts" }
+      ],
+      "audioSamples": [],
+      "fontFamilyCss": "https://raw.githubusercontent.com/SelinaDev/Godot-Roguelike-Tutorial/main/part_7/assets/fonts/kenney_kenney-fonts/Fonts/Kenney%20Blocks.ttf"
+    }
+  ],
+  "recommendation": {
+    "sounds": "kenney-impact-interface-jingles : CC0 sans contrainte, variantes par matière (bois/planche/verre/minage/doux), pas sur herbe/bois, clics doux et jingles pizzicato joyeux, le tout cohérent ; compléter ponctuellement avec freesound-cc0-selection (« Plop! » pour poser, « Bounce » pour le saut).",
+    "icons": "kenney-mobile-controls (joystick et boutons tactiles) + kenney-game-icons-ui-pack (son, plein écran, maison, étoile, info sur boutons colorés UI Pack), tout en CC0 ; utiliser game-icons-net seulement pour la pioche « mining » (Lorc, CC BY 3.0, à créditer).",
+    "fonts": "andika pour tout texte lisible (crédits, éventuels chiffres) car conçue pour les lecteurs débutants ; fredoka pour les gros titres/boutons arrondis ; les deux en OFL 1.1, embarquées localement."
+  }
+}

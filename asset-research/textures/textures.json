@@ -1,0 +1,154 @@
+{
+  "category": "textures",
+  "options": [
+    {
+      "id": "kenney-voxel-pack",
+      "name": "Voxel Pack",
+      "author": "Kenney (Kenney Vleugels, www.kenney.nl)",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://kenney.nl/assets/voxel-pack",
+      "downloadUrl": "https://opengameart.org/sites/default/files/voxel-pack-updated.zip",
+      "resolution": "128x128 (tuiles PNG individuelles, faciles à réduire en 32x32 ou 64x64)",
+      "style": "Cartoon coloré et lisse, contrastes forts, très peu de bruit : lecture immédiate des matières, idéal pour de jeunes enfants",
+      "coverage": "Herbe (grass_top + dirt_grass côté), terre (dirt), pierre (stone, greystone), bûche (trunk_top / trunk_side), planches (wood, wood_red), feuilles (leaves + leaves_transparent avec alpha), brique (brick_red, brick_grey), verre (glass, glass_frame), sable (sand), minerai de diamant (stone_diamond), minerai d'or (stone_gold), « coton » en 4 couleurs (cotton_red, cotton_blue, cotton_green, cotton_tan)",
+      "missing": [
+        "pavé / pierre taillée dédiée (gravel_stone ou brick_grey peuvent servir de substitut)",
+        "bloc d'or plein (seulement le minerai)",
+        "bloc de diamant plein (seulement le minerai)",
+        "laine 9 couleurs : à obtenir en teintant une tuile claire (cotton_tan, ou une tuile blanche à créer) via la couleur du matériau Three.js",
+        "bedrock (substitut possible : rock ou greystone assombri)"
+      ],
+      "pros": [
+        "Licence CC0 : aucune obligation, aucune contrainte de partage",
+        "Style le plus lisible et le plus « jouet » des options, parfait pour 5–7 ans",
+        "Feuilles avec version transparente, verre avec cadre",
+        "Auteur de référence, pack stable et très diffusé",
+        "Même famille graphique que d'autres packs Kenney (UI, personnages) pour un rendu homogène"
+      ],
+      "cons": [
+        "Pas de laine multicolore native ni de blocs or/diamant pleins : à teinter ou dessiner",
+        "Pas de vrai pavé / pierre taillée",
+        "Résolution 128 px : à redimensionner pour économiser la mémoire sur tablette"
+      ],
+      "attribution": "Voxel Pack par Kenney (www.kenney.nl) — licence CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/). Crédit non obligatoire mais apprécié.",
+      "previewImages": [
+        { "url": "https://kenney.nl/media/pages/assets/voxel-pack/a67dbb00bc-1677662492/preview.png", "caption": "Aperçu officiel du pack (vue d'ensemble)" },
+        { "url": "https://kenney.nl/media/pages/assets/voxel-pack/4d978bf173-1677662498/sample_3d.png", "caption": "Exemple officiel de scène 3D en blocs" },
+        { "url": "https://kenney.nl/media/pages/assets/voxel-pack/52a25234a4-1677662495/sample_2d.png", "caption": "Exemple officiel de scène 2D avec les tuiles" },
+        { "url": "https://raw.githubusercontent.com/minetest-mods/voxelpack_by_kenney/master/screenshot.png", "caption": "Les tuiles Kenney dans un monde voxel (portage Minetest, CC0)" },
+        { "url": "https://raw.githubusercontent.com/minetest-mods/voxelpack_by_kenney/master/default_grass_side.png", "caption": "Tuile : herbe, côté" },
+        { "url": "https://raw.githubusercontent.com/minetest-mods/voxelpack_by_kenney/master/default_mineral_diamond.png", "caption": "Tuile : minerai de diamant" }
+      ]
+    },
+    {
+      "id": "minetest-game-textures",
+      "name": "Textures de Minetest Game (mods default + wool)",
+      "author": "Contributeurs de Minetest Game / Luanti (Cisoun, celeron55, VanessaE, Calinou, BlockMen, Neuromancer, Gambit, kilbith, random-geek, Krock, paramat, TumeniNodes et al.)",
+      "license": "CC-BY-SA 3.0 (quelques fichiers CC0, ex. default_glass.png par Krock)",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "sourceUrl": "https://github.com/luanti-org/minetest_game",
+      "downloadUrl": "https://github.com/luanti-org/minetest_game/tree/master/mods/default/textures",
+      "resolution": "16x16",
+      "style": "Pixel-art 16x16 classique, naturaliste, couleurs plus sombres et texturées",
+      "coverage": "Herbe (default_grass dessus + default_grass_side), terre (default_dirt), pierre (default_stone), pavé (default_cobble) et pierre taillée (default_stone_brick / default_stone_block), bûche (default_tree_top / default_tree), planches (default_wood), feuilles (default_leaves, avec transparence), brique (default_brick), verre (default_glass, transparent), sable (default_sand), diamant (minerai default_mineral_diamond + bloc default_diamond_block), or (minerai default_mineral_gold + bloc default_gold_block), laine 15 couleurs natives (mod wool : les 9 demandées sont présentes, violet = wool_violet)",
+      "missing": [
+        "bedrock (substitut : default_obsidian ou pierre assombrie)"
+      ],
+      "pros": [
+        "Couverture quasi totale de la liste, y compris les 9 laines natives",
+        "Licence documentée fichier par fichier dans mods/default/README.md et mods/wool/README.md",
+        "Art original de la communauté Minetest, sans lien avec Mojang",
+        "Fichiers bruts accessibles directement sur GitHub",
+        "Résolution 16x16 très légère pour une tablette"
+      ],
+      "cons": [
+        "CC-BY-SA 3.0 : partage à l'identique obligatoire pour les textures et leurs dérivés, attribution longue avec la liste des auteurs",
+        "Style plus réaliste et sombre, un peu moins lisible pour 5–7 ans qu'un style cartoon",
+        "Pixel-art très petit : nécessite un filtrage « nearest » pour rester net"
+      ],
+      "attribution": "Textures issues de Minetest Game (https://github.com/luanti-org/minetest_game), mods « default » et « wool », par celeron55 (Perttu Ahola), Cisoun, VanessaE, Calinou, PilzAdam, InfinityProject, BlockMen, Neuromancer, Gambit, kilbith, random-geek, TumeniNodes, paramat, Krock et les autres contributeurs listés dans mods/default/README.md et mods/wool/README.md — licence CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/) ; default_glass.png par Krock sous CC0 1.0. Modifications éventuelles : [à préciser].",
+      "previewImages": [
+        { "url": "https://raw.githubusercontent.com/luanti-org/minetest_game/master/screenshot.png", "caption": "Capture officielle de Minetest Game (vue d'ensemble)" },
+        { "url": "https://raw.githubusercontent.com/luanti-org/minetest_game/master/mods/default/textures/default_grass_side.png", "caption": "Tuile : herbe, côté" },
+        { "url": "https://raw.githubusercontent.com/luanti-org/minetest_game/master/mods/default/textures/default_tree_top.png", "caption": "Tuile : bûche, dessus" },
+        { "url": "https://raw.githubusercontent.com/luanti-org/minetest_game/master/mods/default/textures/default_brick.png", "caption": "Tuile : brique" },
+        { "url": "https://raw.githubusercontent.com/luanti-org/minetest_game/master/mods/default/textures/default_diamond_block.png", "caption": "Tuile : bloc de diamant" },
+        { "url": "https://raw.githubusercontent.com/luanti-org/minetest_game/master/mods/wool/textures/wool_red.png", "caption": "Tuile : laine rouge" }
+      ]
+    },
+    {
+      "id": "programmerart-deathcap",
+      "name": "ProgrammerArt",
+      "author": "deathcap",
+      "license": "CC-BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "sourceUrl": "https://github.com/deathcap/ProgrammerArt",
+      "downloadUrl": "https://github.com/deathcap/ProgrammerArt/releases",
+      "resolution": "16x16",
+      "style": "Pixel-art 16x16 simple et plat, aplats de couleurs vives, peu de détails : lisible et « fait main »",
+      "coverage": "Herbe (grass_top + grass_side), terre (dirt), pierre (stone), pavé (cobblestone) et pierre taillée (stonebrick), bûche (log_oak_top / log_oak), planches (planks_oak + 5 essences), feuilles (leaves_oak), brique (brick), verre (glass + 16 verres colorés), sable (sand), diamant (diamond_ore + diamond_block), or (gold_ore + gold_block), laine 16 couleurs (wool_colored_* : les 9 demandées sont présentes, violet = purple), bedrock (bedrock)",
+      "missing": [
+        "rien d'essentiel ; à vérifier : grass_top et leaves_oak peuvent être en niveaux de gris, prévus pour être teintés (teinte verte à appliquer dans Three.js si besoin)"
+      ],
+      "pros": [
+        "Couverture complète de la liste, bedrock compris",
+        "CC-BY 4.0 : simple attribution, pas de partage à l'identique",
+        "Textures déclarées originales, créées pour les jeux voxel (README et fichier CREDITS)",
+        "Style plat et vif, plus lisible pour les enfants que le pixel-art réaliste",
+        "Fichiers bruts clairement nommés sur GitHub, aussi publiés sur npm (programmerart-textures)"
+      ],
+      "cons": [
+        "Aussi distribué sous forme de resource pack Minecraft et calqué sur la nomenclature Minecraft : art original, mais l'esprit de la consigne « pas de resource packs Minecraft » mérite une validation humaine",
+        "Qualité graphique inégale selon les tuiles (style « programmeur »)",
+        "Projet peu maintenu"
+      ],
+      "attribution": "ProgrammerArt par deathcap (https://github.com/deathcap/ProgrammerArt) — licence CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modifications éventuelles : [à préciser].",
+      "previewImages": [
+        { "url": "https://i.imgur.com/bmm7HK4.png", "caption": "Capture officielle du README (vue d'ensemble en jeu)" },
+        { "url": "https://raw.githubusercontent.com/deathcap/ProgrammerArt/master/pack.png", "caption": "Icône du pack" },
+        { "url": "https://raw.githubusercontent.com/deathcap/ProgrammerArt/master/textures/blocks/grass_side.png", "caption": "Tuile : herbe, côté" },
+        { "url": "https://raw.githubusercontent.com/deathcap/ProgrammerArt/master/textures/blocks/log_oak.png", "caption": "Tuile : bûche, côté" },
+        { "url": "https://raw.githubusercontent.com/deathcap/ProgrammerArt/master/textures/blocks/wool_colored_red.png", "caption": "Tuile : laine rouge" },
+        { "url": "https://raw.githubusercontent.com/deathcap/ProgrammerArt/master/textures/blocks/diamond_ore.png", "caption": "Tuile : minerai de diamant" }
+      ]
+    },
+    {
+      "id": "aroach-16x16-block-set",
+      "name": "16x16 block texture set (palette Comfy52)",
+      "author": "ARoachIFoundOnMyPillow",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceUrl": "https://opengameart.org/content/16x16-block-texture-set",
+      "downloadUrl": "https://opengameart.org/sites/default/files/blocks_2.zip",
+      "resolution": "16x16",
+      "style": "Pixel-art 16x16 doux et harmonieux, palette limitée Comfy52 aux tons chauds",
+      "coverage": "D'après les tags de la page (non vérifié tuile par tuile) : pierre et roches, terre, bois et bûches, sable, briques, plantes et fleurs, cactus, cultures, corail. Herbe probable (à confirmer sur le tilemap)",
+      "missing": [
+        "verre (non mentionné)",
+        "minerais et blocs de diamant et d'or (non mentionnés)",
+        "laine : à obtenir en teintant une tuile blanche",
+        "bedrock",
+        "couverture exacte à confirmer en ouvrant tilemap.png"
+      ],
+      "pros": [
+        "CC0 : liberté totale",
+        "Palette cohérente et douce, agréable pour des enfants",
+        "Fichiers séparés et tilemap fournis",
+        "Peut être complété par le pack « 1616 block textures » du même auteur (CC0)"
+      ],
+      "cons": [
+        "Couverture incomplète et non vérifiée en détail",
+        "Plusieurs blocs clés (verre, or, diamant, laine) probablement à dessiner soi-même",
+        "Moins de variantes que les autres options"
+      ],
+      "attribution": "16x16 block texture set par ARoachIFoundOnMyPillow (https://opengameart.org/content/16x16-block-texture-set) — licence CC0 1.0. Crédit non obligatoire.",
+      "previewImages": [
+        { "url": "https://opengameart.org/sites/default/files/preview_1185.png", "caption": "Aperçu officiel du pack (vue d'ensemble)" },
+        { "url": "https://opengameart.org/sites/default/files/tilemap_11.png", "caption": "Tilemap complet des tuiles" },
+        { "url": "https://opengameart.org/sites/default/files/blocks_preview.png", "caption": "Pack complémentaire « 1616 block textures » du même auteur (CC0)" }
+      ]
+    }
+  ],
+  "recommendation": "kenney-voxel-pack — Son style cartoon lisse et très contrasté est le plus lisible pour des enfants de 5–7 ans sur tablette, et la licence CC0 supprime toute contrainte juridique. Il couvre la majorité des blocs (herbe, terre, pierre, bûche, planches, feuilles, brique, verre, sable, minerais de diamant et d'or) ; la laine 9 couleurs se fait en teintant une tuile claire dans Three.js, et les quelques manques (pavé, blocs or/diamant pleins) peuvent être complétés depuis ProgrammerArt (CC-BY 4.0) ou Minetest Game (CC-BY-SA 3.0)."
+}
