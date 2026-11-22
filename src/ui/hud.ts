@@ -4,6 +4,18 @@ import { NO_LOOK_ATTR } from '../controls/input';
 import { createIcon, onIconsChanged, refreshIcons, renderIconInto, type IconName } from './icons';
 import { HoldRepeater, LongPress, type Clock } from './timing';
 
+/**
+ * État de vol à afficher après un appui sur le bouton vol.
+ * - `toggleFly` a renvoyé un booléen : c'est l'état réel ;
+ * - sinon, si l'action a déjà mis le HUD à jour (`setFlying` appelé pendant l'action) : on le garde ;
+ * - sinon : basculement local.
+ */
+export function nextFlyingState(result: unknown, before: boolean, after: boolean): boolean {
+  if (typeof result === 'boolean') return result;
+  if (after !== before) return after;
+  return !before;
+}
+
 /** Noms français des blocs (aria-label uniquement : aucun texte visible). */
 export const BLOCK_LABELS_FR: Readonly<Record<BlockId, string>> = {
   [BlockId.Air]: 'Air',
@@ -216,8 +228,10 @@ export class Hud {
       const fly = this.button('fly', 'cb-btn-fly', 'Voler');
       fly.setAttribute('aria-pressed', 'false');
       this.on(fly, 'click', () => {
-        this.actions.toggleFly?.();
-        this.setFlying(!this.flying);
+        const before = this.flying;
+        // `toggleFly` est typé `void` dans le contrat mais peut renvoyer l'état réel.
+        const result: unknown = (this.actions.toggleFly as (() => unknown) | undefined)?.();
+        this.setFlying(nextFlyingState(result, before, this.flying));
       });
       this.bindPressVisual(fly);
       topLeft.appendChild(fly);
@@ -289,11 +303,16 @@ export class Hud {
     if (id === this.selectedId) this.updatePlaceSwatch();
   }
 
-  /** Mode vol : affiche le bouton DESCENDRE et met en évidence le bouton vol. */
+  /**
+   * Mode vol : affiche le bouton DESCENDRE et met en évidence le bouton vol.
+   * Idempotent : reflète l'état donné, peut être appelé plusieurs fois avec la même valeur.
+   */
   setFlying(on: boolean): void {
+    const was = this.flying;
     this.flying = on;
     this.descendBtn.hidden = !on;
-    if (!on) this.opts.onDescendChange?.(false);
+    // Relâche DESCENDRE seulement à la sortie du vol (pas à chaque appel).
+    if (was && !on) this.opts.onDescendChange?.(false);
     this.flyBtn?.setAttribute('aria-pressed', String(on));
   }
 
