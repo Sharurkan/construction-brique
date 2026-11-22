@@ -9,7 +9,13 @@
   --cb-big: 100px;     /* SAUTER */
   --cb-action: 92px;   /* CASSER / POSER */
   --cb-small: 64px;    /* boutons du haut (>= 64 px) */
-  --cb-slot: 64px;     /* palette */
+  --cb-slot: 64px;     /* palette (>= 64 px) */
+  --cb-gap: 10px;      /* écart entre blocs de la palette */
+  --cb-top-gap: 14px;  /* écart entre boutons du haut */
+  --cb-pal-pad: 16px 14px 10px;
+  /* Place réservée de chaque côté de la palette : grappe d'actions à droite, joystick au repos
+     à gauche (centre à marge + 90 px, rayon 75 px). */
+  --cb-side: max(var(--cb-big) + var(--cb-action) + 18px, 170px);
   --cb-red: #ff4f5a;
   --cb-green: #2fc65a;
   --cb-blue: #3a8dff;
@@ -22,12 +28,13 @@
   --cb-pink: #e8459c;
 }
 
-/* Écrans plus petits (ex. 1024×600, téléphones paysage) : boutons un peu réduits mais >= 64 px. */
+/* Écrans plus petits (ex. 1024×600, 915×412) : TOUT élément interactif reste >= 64 px ;
+   on réduit les marges, les écarts et le nombre de blocs visibles (la palette défile). */
 @media (max-height: 640px) {
-  :root { --cb-big: 92px; --cb-action: 86px; --cb-small: 64px; --cb-slot: 60px; --cb-margin: 12px; }
+  :root { --cb-big: 92px; --cb-action: 86px; --cb-margin: 12px; --cb-gap: 8px; }
 }
 @media (max-height: 420px) {
-  :root { --cb-big: 76px; --cb-action: 70px; --cb-small: 54px; --cb-slot: 52px; --cb-margin: 8px; }
+  :root { --cb-big: 72px; --cb-action: 66px; --cb-margin: 8px; --cb-gap: 6px; --cb-top-gap: 10px; --cb-pal-pad: 14px 10px 8px; }
 }
 
 html, body {
@@ -129,10 +136,10 @@ html, body {
   transform: translateX(-50%);
   bottom: calc(var(--cb-margin) / 2 + var(--cb-safe-b));
   /* Réserve la place du joystick (gauche) et des boutons (droite). */
-  max-width: calc(100% - 2 * (var(--cb-big) + var(--cb-action) + 18px + var(--cb-margin) * 2) - var(--cb-safe-l) - var(--cb-safe-r));
+  max-width: calc(100% - 2 * (var(--cb-side) + var(--cb-margin) + 8px) - var(--cb-safe-l) - var(--cb-safe-r));
   display: flex;
-  gap: 10px;
-  padding: 16px 14px 10px;
+  gap: var(--cb-gap);
+  padding: var(--cb-pal-pad);
   border-radius: 24px;
   background: rgba(20, 30, 50, 0.38);
   overflow-x: auto;
@@ -217,7 +224,7 @@ html, body {
   position: absolute;
   top: calc(var(--cb-margin) + var(--cb-safe-t));
   display: flex;
-  gap: 14px;
+  gap: var(--cb-top-gap);
   align-items: center;
   pointer-events: none;
 }
@@ -287,7 +294,10 @@ html, body {
 .cb-rotate {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  /* Attaché à <body> (hors HUD) : au-dessus de l'écran jouer (50), des crédits (60), du debug (40). */
+  z-index: 1000;
+  -webkit-user-select: none;
+  user-select: none;
   display: none;
   place-items: center;
   background: linear-gradient(160deg, #7ec8ff, #3a8dff);

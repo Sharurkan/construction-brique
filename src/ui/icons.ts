@@ -58,11 +58,6 @@ export function getIcon(name: IconName): IconSource {
   return current[name];
 }
 
-/** Vrai tant que l'icône n'a pas été remplacée par le pack définitif. */
-export function isProvisional(name: IconName): boolean {
-  return current[name] === PROVISIONAL_ICONS[name];
-}
-
 export function setIcon(name: IconName, src: IconSource): void {
   setIcons({ [name]: src });
 }
@@ -73,11 +68,6 @@ export function setIcons(map: Partial<Record<IconName, IconSource>>): void {
     if (v && k in current) current[k] = v;
   }
   for (const cb of listeners) cb();
-}
-
-/** Revient au jeu provisoire. */
-export function resetIcons(): void {
-  setIcons({ ...PROVISIONAL_ICONS });
 }
 
 /** Abonnement aux remplacements d'icônes. Renvoie une fonction de désabonnement. */

@@ -2,6 +2,7 @@ import './styles.css';
 import { BlockId, type GameActions } from '../core/types';
 import { NO_LOOK_ATTR } from '../controls/input';
 import { createIcon, onIconsChanged, refreshIcons, renderIconInto, type IconName } from './icons';
+import { PressState } from './press';
 import { HoldRepeater, LongPress, type Clock } from './timing';
 
 /**
@@ -98,6 +99,9 @@ export class Hud {
   private readonly fsBtn: HTMLButtonElement;
   private readonly longPress: LongPress;
   private readonly repeaters: Array<{ r: HoldRepeater; fn: () => void }> = [];
+  private readonly presses: Array<{ state: PressState; btn: HTMLElement }> = [];
+  /** Overlay « tourne la tablette », attaché à `document.body` (au-dessus de tout). */
+  private readonly rotateOverlay: HTMLDivElement;
   private readonly cleanups: Array<() => void> = [];
   private readonly icons = new Map<BlockId, string>();
   private raf = 0;
@@ -236,8 +240,8 @@ export class Hud {
       fly.setAttribute('aria-pressed', 'false');
       this.on(fly, 'click', () => {
         const before = this.flying;
-        // `toggleFly` est typé `void` dans le contrat mais peut renvoyer l'état réel.
-        const result: unknown = (this.actions.toggleFly as (() => unknown) | undefined)?.();
+        // Renvoie l'état réel ; si l'action ne renvoie rien, `nextFlyingState` bascule localement.
+        const result = this.actions.toggleFly?.();
         this.setFlying(nextFlyingState(result, before, this.flying));
       });
       this.bindPressVisual(fly);
@@ -247,20 +251,41 @@ export class Hud {
     }
 
     // ----- Overlay portrait -----
+    // Hors du HUD, directement dans <body> : il doit passer AU-DESSUS de l'écran jouer,
+    // des crédits et du debug (z-index 1000), et bloquer tous les gestes en dessous.
     const rotate = document.createElement('div');
     rotate.className = 'cb-rotate';
     rotate.setAttribute('role', 'alert');
     rotate.setAttribute('aria-label', 'Tourne la tablette');
+    rotate.setAttribute(NO_LOOK_ATTR, '');
     rotate.appendChild(createIcon('rotate'));
-    el.appendChild(rotate);
+    const swallow = (e: Event): void => {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+    };
+    for (const t of ['pointerdown', 'pointermove', 'pointerup', 'click', 'touchstart', 'touchmove', 'wheel', 'contextmenu']) {
+      this.on(rotate, t, swallow, { passive: false });
+    }
+    this.rotateOverlay = rotate;
 
     // Empêche que les gestes sur l'interface atteignent le jeu ou le navigateur.
     this.on(el, 'pointerdown', (e) => e.stopPropagation());
     this.on(el, 'contextmenu', (e) => e.preventDefault());
     this.installGlobalGuards();
-    this.cleanups.push(onIconsChanged(() => refreshIcons(this.element)));
+    this.cleanups.push(onIconsChanged(() => {
+      refreshIcons(this.element);
+      refreshIcons(this.rotateOverlay);
+    }));
+
+    // Boutons « coincés » : le relâchement n'arrive pas si la page passe en arrière-plan.
+    const releaseAll = (): void => this.releaseAllPresses();
+    this.on(window, 'blur', releaseAll);
+    this.on(window, 'pagehide', releaseAll);
+    this.on(window, 'orientationchange', releaseAll);
+    this.on(document, 'visibilitychange', () => { if (document.hidden) releaseAll(); });
 
     root.appendChild(el);
+    document.body.appendChild(rotate);
     this.applySelection(false);
   }
 
@@ -323,11 +348,35 @@ export class Hud {
     this.flyBtn?.setAttribute('aria-pressed', String(on));
   }
 
+  /**
+   * Relâche tous les boutons appuyés, quel que soit le pointeur : arrête la répétition de
+   * CASSER/POSER, annule l'appui long « nouveau monde », relâche SAUTER/DESCENDRE.
+   * Appelé automatiquement sur blur, page masquée, pagehide et rotation de l'écran.
+   */
+  releaseAllPresses(): void {
+    for (const { state, btn } of this.presses) {
+      const id = state.pointerId;
+      if (!state.forceRelease()) continue; // retire is-pressed et appelle up()
+      if (id !== null) {
+        try { if (btn.hasPointerCapture(id)) btn.releasePointerCapture(id); } catch { /* ignore */ }
+      }
+    }
+    // Filets (idempotents) au cas où un état aurait survécu sans pointeur suivi.
+    for (const { r } of this.repeaters) r.release();
+    this.longPress.cancel();
+    this.newBtn.classList.remove('is-charging');
+    this.setRing(0);
+    this.opts.onJumpChange?.(false);
+    this.opts.onDescendChange?.(false);
+  }
+
   dispose(): void {
+    this.releaseAllPresses();
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     for (const c of this.cleanups.splice(0)) c();
     this.element.remove();
+    this.rotateOverlay.remove();
   }
 
   // ---------- interne ----------
@@ -354,26 +403,25 @@ export class Hud {
     this.opts.onButtonPress?.();
   }
 
-  /** Gère appui / relâchement d'un bouton via Pointer Events (capture = relâchement toujours reçu). */
+  /**
+   * Gère appui / relâchement d'un bouton via Pointer Events (capture = relâchement normalement
+   * reçu). Si le relâchement se perd (page en arrière-plan…), `releaseAllPresses` débloque.
+   */
   private bindPress(btn: HTMLElement, down: () => void, up: () => void): void {
-    let active: number | null = null;
+    const state = new PressState(
+      () => { btn.classList.add('is-pressed'); down(); },
+      () => { btn.classList.remove('is-pressed'); up(); },
+      () => btn.getAttribute('aria-disabled') === 'true',
+    );
+    this.presses.push({ state, btn });
     this.on(btn, 'pointerdown', (ev) => {
       const e = ev as PointerEvent;
       e.preventDefault();
       e.stopPropagation();
-      if (active !== null || btn.getAttribute('aria-disabled') === 'true') return;
-      active = e.pointerId;
+      if (!state.down(e.pointerId)) return;
       try { btn.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-      btn.classList.add('is-pressed');
-      down();
     });
-    const release = (ev: Event): void => {
-      const e = ev as PointerEvent;
-      if (active === null || e.pointerId !== active) return;
-      active = null;
-      btn.classList.remove('is-pressed');
-      up();
-    };
+    const release = (ev: Event): void => { state.up((ev as PointerEvent).pointerId); };
     for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) this.on(btn, t, release);
   }
 
