@@ -1,8 +1,7 @@
 import '../ui/styles.css';
 import type { InputState } from '../core/types';
-import {
-  computeJoystick, dragToLook, isTap, keysToMove, keyToMoveDir, keyToSlot, mergeMove, type MoveDir,
-} from './gestures';
+import { dragToLook, keysToMove, keyToMoveDir, keyToSlot, mergeMove, type MoveDir } from './gestures';
+import { TouchTracker, type TouchRole } from './touch';
 
 /**
  * Attribut posé sur tout élément d'interface : un doigt qui commence dessus
@@ -25,8 +24,6 @@ export interface InputOptions {
   joystickSize?: number;
   /** Zone morte du joystick (fraction du rayon). Défaut 0.15. */
   deadZone?: number;
-  /** Tap court sur la zone de regard (ne fait rien par défaut). Coordonnées client. */
-  onTap?: (x: number, y: number) => void;
   /** Clic gauche (souris capturée) : casser. */
   onPrimary?: () => void;
   /** Clic droit (souris capturée) : poser. */
@@ -41,18 +38,6 @@ export interface InputOptions {
   pointerLock?: boolean;
 }
 
-type Role = 'joystick' | 'look';
-
-interface TrackedPointer {
-  role: Role;
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastY: number;
-  startTime: number;
-  maxDist: number;
-}
-
 /**
  * Fusionne tactile (joystick flottant à gauche, regard à droite) et clavier/souris.
  * Lecture par frame : `state` (move/jump en continu) puis `consumeLook()` pour la rotation accumulée.
@@ -62,46 +47,71 @@ export class InputManager {
 
   touchLookSensitivity: number;
   mouseLookSensitivity: number;
-  onTap?: (x: number, y: number) => void;
 
   private readonly opts: InputOptions;
-  private readonly pointers = new Map<number, TrackedPointer>();
-  private joystickMove = { x: 0, z: 0 };
+  private readonly touch: TouchTracker;
   private readonly keyDirs = new Map<string, MoveDir>();
   private keyJump = false;
   private keyDescend = false;
   private readonly buttons = { jump: false, descend: false };
   private mouseLockFailed = false;
   private readonly joyBase: HTMLDivElement;
-  private readonly joyKnob: HTMLDivElement;
   private readonly cleanups: Array<() => void> = [];
 
   constructor(private readonly element: HTMLElement, options: InputOptions = {}) {
     this.opts = options;
     this.touchLookSensitivity = options.touchLookSensitivity ?? 0.0055;
     this.mouseLookSensitivity = options.mouseLookSensitivity ?? 0.0025;
-    this.onTap = options.onTap;
 
     element.style.touchAction = 'none';
     element.style.userSelect = 'none';
     if (getComputedStyle(element).position === 'static') element.style.position = 'relative';
 
-    // Visuel du joystick flottant (masqué tant qu'aucun doigt n'est posé).
+    // Visuel du joystick flottant (discret tant qu'aucun doigt n'est posé).
     const size = Math.max(140, options.joystickSize ?? 150);
-    this.joyBase = document.createElement('div');
-    this.joyBase.className = 'cb-joy-base';
-    this.joyBase.style.width = this.joyBase.style.height = `${size}px`;
-    this.joyKnob = document.createElement('div');
-    this.joyKnob.className = 'cb-joy-knob';
-    this.joyBase.appendChild(this.joyKnob);
-    this.joyBase.setAttribute('aria-hidden', 'true');
-    element.appendChild(this.joyBase);
+    const base = document.createElement('div');
+    base.className = 'cb-joy-base';
+    base.style.width = base.style.height = `${size}px`;
+    const knob = document.createElement('div');
+    knob.className = 'cb-joy-knob';
+    base.appendChild(knob);
+    base.setAttribute('aria-hidden', 'true');
+    element.appendChild(base);
+    this.joyBase = base;
+
+    this.touch = new TouchTracker(
+      {
+        show: (x, y) => {
+          const rect = element.getBoundingClientRect();
+          base.style.left = `${x - rect.left}px`;
+          base.style.top = `${y - rect.top}px`;
+          base.classList.add('is-active');
+        },
+        setKnob: (dx, dy) => {
+          knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        },
+        hide: () => {
+          base.classList.remove('is-active');
+          base.style.left = '';
+          base.style.top = '';
+          knob.style.transform = 'translate(-50%, -50%)';
+        },
+      },
+      {
+        radius: () => this.joystickRadius(),
+        deadZone: options.deadZone ?? 0.15,
+        lookSensitivity: () => this.touchLookSensitivity,
+      },
+    );
 
     this.listen(element, 'pointerdown', this.onPointerDown as EventListener);
     this.listen(element, 'pointermove', this.onPointerMove as EventListener);
-    this.listen(element, 'pointerup', this.onPointerUp as EventListener);
-    this.listen(element, 'pointercancel', this.onPointerCancel as EventListener);
-    this.listen(element, 'lostpointercapture', this.onPointerCancel as EventListener);
+    this.listen(element, 'pointerup', this.onPointerEnd as EventListener);
+    this.listen(element, 'pointercancel', this.onPointerEnd as EventListener);
+    this.listen(element, 'lostpointercapture', this.onPointerEnd as EventListener);
+    // Filet si la capture a échoué : le relâchement arrive alors hors de l'élément.
+    this.listen(window, 'pointerup', this.onPointerEnd as EventListener, { capture: true });
+    this.listen(window, 'pointercancel', this.onPointerEnd as EventListener, { capture: true });
     this.listen(element, 'contextmenu', (e) => e.preventDefault());
     this.listen(element, 'wheel', this.onWheel as EventListener, { passive: false });
     this.listen(document, 'mousemove', this.onMouseMove as EventListener);
@@ -109,7 +119,11 @@ export class InputManager {
     this.listen(window, 'keydown', this.onKeyDown as EventListener);
     this.listen(window, 'keyup', this.onKeyUp as EventListener);
     this.listen(window, 'blur', () => this.releaseAll());
+    this.listen(window, 'pagehide', () => this.releaseAll());
     this.listen(document, 'visibilitychange', () => { if (document.hidden) this.releaseAll(); });
+    // Rotation de l'écran pendant un geste : le centre du joystick n'a plus de sens.
+    this.listen(window, 'orientationchange', () => this.releaseAll());
+    this.listen(window, 'resize', () => { if (this.touch.count > 0) this.releaseAll(); });
   }
 
   /** Renvoie la rotation accumulée depuis le dernier appel et la remet à zéro. */
@@ -126,6 +140,19 @@ export class InputManager {
     this.refresh();
   }
 
+  /**
+   * Relâche tout : touches, boutons virtuels, doigts suivis, et remet le visuel du joystick
+   * au repos (même sans doigt suivi). Appelé automatiquement sur blur, pagehide, page masquée
+   * et rotation de l'écran.
+   */
+  releaseAll(): void {
+    this.keyDirs.clear();
+    this.keyJump = this.keyDescend = false;
+    this.buttons.jump = this.buttons.descend = false;
+    this.touch.releaseAll();
+    this.refresh();
+  }
+
   get pointerLocked(): boolean {
     return document.pointerLockElement === this.element;
   }
@@ -133,8 +160,8 @@ export class InputManager {
   dispose(): void {
     for (const c of this.cleanups.splice(0)) c();
     if (this.pointerLocked) document.exitPointerLock?.();
+    this.touch.releaseAll();
     this.joyBase.remove();
-    this.pointers.clear();
   }
 
   // ---------- interne ----------
@@ -146,19 +173,11 @@ export class InputManager {
 
   private refresh(): void {
     const kb = keysToMove(this.keyDirs.values());
-    const m = mergeMove(this.joystickMove, kb);
+    const m = mergeMove(this.touch.move, kb);
     this.state.move.x = m.x;
     this.state.move.z = m.z;
     this.state.jump = this.keyJump || this.buttons.jump;
     this.state.descend = this.keyDescend || this.buttons.descend;
-  }
-
-  private releaseAll(): void {
-    this.keyDirs.clear();
-    this.keyJump = this.keyDescend = false;
-    this.buttons.jump = this.buttons.descend = false;
-    for (const id of [...this.pointers.keys()]) this.endPointer(id, false);
-    this.refresh();
   }
 
   private isUiTarget(e: Event): boolean {
@@ -191,78 +210,39 @@ export class InputManager {
     }
 
     const rect = this.element.getBoundingClientRect();
-    const leftHalf = e.clientX - rect.left < rect.width / 2;
-    const role: Role = leftHalf ? 'joystick' : 'look';
+    const role: TouchRole = e.clientX - rect.left < rect.width / 2 ? 'joystick' : 'look';
     // Un seul doigt par rôle ; les doigts supplémentaires sont ignorés.
-    for (const p of this.pointers.values()) if (p.role === role) return;
+    if (this.touch.hasRole(role)) return;
 
+    let ox = e.clientX;
+    let oy = e.clientY;
+    if (role === 'joystick') {
+      // Le centre reste entièrement à l'écran même si le doigt se pose près d'un bord.
+      const r = this.joystickRadius();
+      ox = rect.left + Math.min(Math.max(e.clientX - rect.left, r), rect.width - r);
+      oy = rect.top + Math.min(Math.max(e.clientY - rect.top, r), rect.height - r);
+    }
     e.preventDefault();
     try { this.element.setPointerCapture(e.pointerId); } catch { /* pointeur déjà relâché */ }
-    this.pointers.set(e.pointerId, {
-      role, startX: e.clientX, startY: e.clientY, lastX: e.clientX, lastY: e.clientY,
-      startTime: performance.now(), maxDist: 0,
-    });
-
-    if (role === 'joystick') {
-      const r = this.joystickRadius();
-      // Le centre reste entièrement à l'écran même si le doigt se pose près d'un bord.
-      const cx = Math.min(Math.max(e.clientX - rect.left, r), rect.width - r);
-      const cy = Math.min(Math.max(e.clientY - rect.top, r), rect.height - r);
-      const p = this.pointers.get(e.pointerId)!;
-      p.startX = cx + rect.left;
-      p.startY = cy + rect.top;
-      this.joyBase.style.left = `${cx}px`;
-      this.joyBase.style.top = `${cy}px`;
-      this.joyBase.classList.add('is-active');
-      this.updateJoystick(p, e.clientX, e.clientY);
-    }
+    this.touch.begin(e.pointerId, role, e.clientX, e.clientY, ox, oy);
+    this.refresh();
   };
 
   private onPointerMove = (e: PointerEvent): void => {
-    const p = this.pointers.get(e.pointerId);
-    if (!p) return;
-    p.maxDist = Math.max(p.maxDist, Math.hypot(e.clientX - p.startX, e.clientY - p.startY));
-    if (p.role === 'joystick') {
-      this.updateJoystick(p, e.clientX, e.clientY);
+    if (!this.touch.has(e.pointerId)) return;
+    const look = this.touch.moveTo(e.pointerId, e.clientX, e.clientY);
+    if (look) {
+      this.state.look.yaw += look.yaw;
+      this.state.look.pitch += look.pitch;
     } else {
-      const d = dragToLook(e.clientX - p.lastX, e.clientY - p.lastY, this.touchLookSensitivity);
-      this.state.look.yaw += d.yaw;
-      this.state.look.pitch += d.pitch;
-    }
-    p.lastX = e.clientX;
-    p.lastY = e.clientY;
-  };
-
-  private onPointerUp = (e: PointerEvent): void => {
-    this.endPointer(e.pointerId, true, e.clientX, e.clientY);
-  };
-
-  private onPointerCancel = (e: PointerEvent): void => {
-    this.endPointer(e.pointerId, false);
-  };
-
-  private endPointer(id: number, allowTap: boolean, x = 0, y = 0): void {
-    const p = this.pointers.get(id);
-    if (!p) return;
-    this.pointers.delete(id);
-    if (p.role === 'joystick') {
-      this.joystickMove = { x: 0, z: 0 };
-      this.joyBase.classList.remove('is-active');
-      this.joyBase.style.left = '';
-      this.joyBase.style.top = '';
-      this.joyKnob.style.transform = 'translate(-50%, -50%)';
       this.refresh();
-    } else if (allowTap && isTap(performance.now() - p.startTime, p.maxDist)) {
-      this.onTap?.(x, y);
     }
-  }
+  };
 
-  private updateJoystick(p: TrackedPointer, x: number, y: number): void {
-    const out = computeJoystick(x - p.startX, y - p.startY, this.joystickRadius(), this.opts.deadZone ?? 0.15);
-    this.joystickMove = { x: out.x, z: out.z };
-    this.joyKnob.style.transform = `translate(calc(-50% + ${out.knobX}px), calc(-50% + ${out.knobY}px))`;
-    this.refresh();
-  }
+  /** pointerup / pointercancel / lostpointercapture (élément ou fenêtre) : idempotent. */
+  private onPointerEnd = (e: PointerEvent): void => {
+    if (this.touch.end(e.pointerId)) this.refresh();
+  };
 
   private onMouseMove = (e: MouseEvent): void => {
     if (!this.pointerLocked) return;

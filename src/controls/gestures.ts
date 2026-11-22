@@ -1,5 +1,5 @@
 /**
- * Logique pure des gestes (sans DOM) : maths du joystick, détection du tap,
+ * Logique pure des gestes (sans DOM) : maths du joystick,
  * conversion glissement -> rotation, clavier -> déplacement. Testée dans gestures.test.ts.
  */
 
@@ -38,18 +38,6 @@ export function computeJoystick(dx: number, dy: number, radius: number, deadZone
 function clean(v: number): number {
   // Évite -0 et les résidus flottants minuscules.
   return Math.abs(v) < 1e-9 ? 0 : v;
-}
-
-export interface TapThresholds {
-  maxDurationMs: number;
-  maxDistancePx: number;
-}
-
-export const DEFAULT_TAP: TapThresholds = { maxDurationMs: 250, maxDistancePx: 10 };
-
-/** Un tap = appui court ET quasi immobile. */
-export function isTap(durationMs: number, distancePx: number, t: TapThresholds = DEFAULT_TAP): boolean {
-  return durationMs < t.maxDurationMs && distancePx < t.maxDistancePx;
 }
 
 /**

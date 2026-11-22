@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clampPitch, computeJoystick, dragToLook, isTap, keysToMove, keyToMoveDir, keyToSlot, MAX_PITCH, mergeMove,
+  clampPitch, computeJoystick, dragToLook, keysToMove, keyToMoveDir, keyToSlot, MAX_PITCH, mergeMove,
 } from './gestures';
 
 describe('computeJoystick', () => {
@@ -43,14 +43,6 @@ describe('computeJoystick', () => {
       expect(Math.abs(r.x)).toBeLessThanOrEqual(1);
       expect(Math.abs(r.z)).toBeLessThanOrEqual(1);
     }
-  });
-});
-
-describe('tap', () => {
-  it('court et immobile = tap', () => {
-    expect(isTap(120, 3)).toBe(true);
-    expect(isTap(260, 3)).toBe(false);
-    expect(isTap(120, 12)).toBe(false);
   });
 });
 
