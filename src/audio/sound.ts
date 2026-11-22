@@ -21,6 +21,10 @@ export interface WebAudioSoundPlayerOptions {
   /** Téléchargement injectable (tests). Défaut : fetch → arrayBuffer. */
   fetchBuffer?: (url: string) => Promise<ArrayBuffer>;
   rand?: () => number;
+  /** Délai minimal avant de retenter un groupe dont aucun fichier n'a pu être chargé (ms). Défaut 10 s. */
+  retryDelayMs?: number;
+  /** Horloge injectable (tests). Défaut : performance.now / Date.now. */
+  now?: () => number;
 }
 
 const DEFAULT_STORAGE_KEY = 'construction-brique:sound';
@@ -64,6 +68,10 @@ export class WebAudioSoundPlayer implements SoundPlayer {
   /** Buffers décodés par groupe (les variantes ratées sont simplement absentes). */
   private readonly buffers = new Map<string, AudioBuffer[]>();
   private readonly loading = new Map<string, Promise<void>>();
+  /** Groupe en échec → instant à partir duquel on peut retenter. */
+  private readonly retryAt = new Map<string, number>();
+  private readonly retryDelayMs: number;
+  private readonly now: () => number;
   private readonly volume: number;
   private readonly storageKey: string;
   private readonly createContext: () => AudioContext | null;
@@ -78,6 +86,8 @@ export class WebAudioSoundPlayer implements SoundPlayer {
     this.createContext = opts.createContext ?? defaultContext;
     this.fetchBuffer = opts.fetchBuffer ?? defaultFetch;
     this.rand = opts.rand ?? Math.random;
+    this.retryDelayMs = opts.retryDelayMs ?? 10_000;
+    this.now = opts.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
     this.on = readPref(this.storageKey);
   }
 
@@ -142,10 +152,16 @@ export class WebAudioSoundPlayer implements SoundPlayer {
     }
   }
 
-  /** Télécharge et décode les variantes d'un groupe (une seule fois). */
+  /**
+   * Télécharge et décode les variantes d'un groupe (une seule fois si ça marche).
+   * Si AUCUNE variante n'a pu être chargée (réseau, fichier absent du cache…), rien n'est
+   * mémorisé : le groupe sera retenté au plus tôt `retryDelayMs` plus tard (pas de boucle).
+   */
   private load(group: SoundGroup | string): Promise<void> {
     const existing = this.loading.get(group);
     if (existing) return existing;
+    const retryAt = this.retryAt.get(group);
+    if (retryAt !== undefined && this.now() < retryAt) return Promise.resolve();
     const ctx = this.ctx;
     const urls = (this.sources[group] ?? []).filter((u) => typeof u === 'string' && u.length > 0);
     const p = (async () => {
@@ -163,9 +179,14 @@ export class WebAudioSoundPlayer implements SoundPlayer {
           }
         }),
       );
-      this.buffers.set(group, decoded.filter((b): b is AudioBuffer => b !== null));
+      const ok = decoded.filter((b): b is AudioBuffer => b !== null);
+      if (ok.length === 0) throw new Error(`aucun son chargé pour « ${group} »`);
+      this.buffers.set(group, ok);
+      this.retryAt.delete(group);
     })().catch(() => {
-      this.buffers.set(group, []);
+      // Échec : pas de liste vide définitive ; nouvel essai possible après le délai.
+      this.loading.delete(group);
+      this.retryAt.set(group, this.now() + this.retryDelayMs);
     });
     this.loading.set(group, p);
     return p;
