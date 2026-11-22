@@ -23,6 +23,7 @@ import { CreditsPanel, isStartScreenVisible, showNoWebGlScreen, showStartScreen 
 import { CREDITS_TEXT } from './credits';
 import { DebugOverlay } from './debug';
 import { PixelRatioAdjuster } from './pixelRatio';
+import { createGameSky } from './sky/sky';
 
 const SKY = 0x7ec8ff;
 /** Portée de la main (blocs). */
@@ -137,6 +138,14 @@ export async function startGame(app: HTMLElement): Promise<void> {
   if (!restored) generateWorld(world, seed);
 
   const worldRenderer = new WorldRenderer(world, scene, atlas);
+
+  // ---------- Ciel en blocs (décor, 1re passe de rendu : voir sky/sky.ts) ----------
+  // `?nosky` : ciel uni d'avant (comparaison de perf).
+  const sky = params.has('nosky') ? null : createGameSky(tiles);
+  if (sky) {
+    scene.background = null; // le fond est dessiné par la passe ciel
+    renderer.autoClear = false;
+  }
 
   // ---------- Joueur ----------
   const spawn = findSpawn(world);
@@ -363,7 +372,7 @@ export async function startGame(app: HTMLElement): Promise<void> {
   const debugOverlay = debug
     ? new DebugOverlay(document.body, renderer, worldRenderer.stats, () => {
         const p = player.state.position;
-        return `\npos        ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}${player.flying ? ' (vol)' : ''}\nseed       ${seed}\npr mode    ${forcedPixelRatio ? 'forcé (?pr)' : 'auto'}`;
+        return `\npos        ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}${player.flying ? ' (vol)' : ''}\nseed       ${seed}\npr mode    ${forcedPixelRatio ? 'forcé (?pr)' : 'auto'}\nciel       ${sky ? `${sky.lastCalls} draw calls · ${sky.triangles} tri` : 'aucun'}`;
       })
     : null;
 
@@ -440,7 +449,11 @@ export async function startGame(app: HTMLElement): Promise<void> {
     // Étincelles des blocs précieux : horloge du matériau gemme.
     worldRenderer.setTime(now / 1000);
 
-    if (!contextLost) renderer.render(scene, camera);
+    sky?.update(dt);
+    if (!contextLost) {
+      sky?.render(renderer, camera);
+      renderer.render(scene, camera);
+    }
     debugOverlay?.frame();
   };
 
