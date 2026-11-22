@@ -145,6 +145,15 @@ export class IndexedDbSaveStore implements SaveStore {
     return new Promise<T>((resolve, reject) => {
       const tx = db.transaction(this.storeName, mode);
       const req = fn(tx.objectStore(this.storeName));
+      if (mode === 'readwrite') {
+        // Force le commit sans attendre la fin de la tâche courante : augmente les chances que
+        // l'écriture aboutisse si la page est détruite juste après (pagehide, appli tuée).
+        try {
+          (tx as { commit?: () => void }).commit?.();
+        } catch {
+          /* commit() indisponible ou transaction déjà terminée : commit automatique */
+        }
+      }
       let result: T;
       reqToPromise(req).then((r) => (result = r), reject);
       tx.oncomplete = () => resolve(result);
@@ -235,17 +244,149 @@ export class LocalStorageSaveStore implements SaveStore {
   }
 
   async save(world: SavedWorld): Promise<void> {
+    // Peut lever QuotaExceededError : propagée à l'appelant (l'autosave la journalise).
+    this.saveSync(world);
+  }
+
+  /** Écriture synchrone (lève en cas d'échec, ex. QuotaExceededError). */
+  saveSync(world: SavedWorld): void {
     const stored: StoredLocalWorld = {
       ...world,
       encoding: 'rle-base64',
       blocks: bytesToBase64(rleEncode(world.blocks)),
     };
-    // Peut lever QuotaExceededError : propagée à l'appelant (l'autosave la journalise).
     this.storage.setItem(this.key, JSON.stringify(stored));
   }
 
+  /**
+   * `savedAt` de la donnée stockée sans valider les blocs : `null` si absente,
+   * `NaN` si illisible. Ne lève jamais.
+   */
+  peekSavedAt(): number | null {
+    try {
+      const text = this.storage.getItem(this.key);
+      if (text === null) return null;
+      const o = JSON.parse(text) as { savedAt?: unknown } | null;
+      return o && typeof o === 'object' && isFiniteNumber(o.savedAt) ? o.savedAt : NaN;
+    } catch {
+      return NaN;
+    }
+  }
+
   async clear(): Promise<void> {
+    this.clearSync();
+  }
+
+  clearSync(): void {
     this.storage.removeItem(this.key);
+  }
+}
+
+// ---------- Sauvegarde d'urgence (synchrone, localStorage) ----------
+
+/** Clé localStorage de la sauvegarde d'urgence écrite quand la page passe en arrière-plan. */
+export const EMERGENCY_SAVE_KEY = 'construction-brique:emergency';
+
+/** Store capable d'une écriture de secours synchrone (utilisée par l'autosave sur `pagehide`/hidden). */
+export interface EmergencySaveCapable {
+  /** Écrit `world` de façon synchrone. Renvoie `false` en cas d'échec (quota…). Ne lève jamais. */
+  saveEmergency(world: SavedWorld): boolean;
+}
+
+export function hasEmergencySave(store: SaveStore): store is SaveStore & EmergencySaveCapable {
+  return typeof (store as Partial<EmergencySaveCapable>).saveEmergency === 'function';
+}
+
+/**
+ * Enveloppe un store asynchrone (IndexedDB) avec une sauvegarde d'urgence synchrone en
+ * localStorage (RLE + base64).
+ *
+ * L'écriture IndexedDB lancée sur `pagehide` / `visibilitychange` → hidden peut ne jamais
+ * aboutir si la page est détruite juste après ; l'urgence, elle, est écrite avant le retour
+ * du gestionnaire d'événement.
+ * - `load()` renvoie la plus récente des deux (champ `savedAt`) ; une urgence plus récente est
+ *   recopiée dans le store principal en tâche de fond ;
+ * - l'urgence est effacée dès qu'une écriture principale confirmée est au moins aussi récente ;
+ * - urgence corrompue : ignorée (puis effacée à la prochaine écriture principale).
+ */
+export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable {
+  readonly primary: SaveStore;
+  private readonly emergency: LocalStorageSaveStore;
+  /** `false` quand on sait qu'aucune urgence n'est stockée (évite de relire localStorage). */
+  private emergencyMaybePresent = true;
+
+  constructor(primary: SaveStore, storage: KeyValueStorage, key = EMERGENCY_SAVE_KEY) {
+    this.primary = primary;
+    this.emergency = new LocalStorageSaveStore(storage, key);
+  }
+
+  async load(): Promise<SavedWorld | null> {
+    const [main, urgent] = await Promise.all([
+      this.primary.load().catch(() => null),
+      this.emergency.load(),
+    ]);
+    if (!urgent) this.dropUnreadableEmergency();
+    if (urgent && (!main || urgent.savedAt > main.savedAt)) {
+      // Recopie dans le store principal (copie des blocs : l'appelant garde l'original).
+      const copy: SavedWorld = { ...urgent, blocks: urgent.blocks.slice() };
+      void this.primary
+        .save(copy)
+        .then(() => this.dropEmergencyIfNotNewerThan(copy.savedAt))
+        .catch(() => {});
+      return urgent;
+    }
+    return main;
+  }
+
+  async save(world: SavedWorld): Promise<void> {
+    await this.primary.save(world);
+    this.dropEmergencyIfNotNewerThan(world.savedAt);
+  }
+
+  saveEmergency(world: SavedWorld): boolean {
+    try {
+      this.emergency.saveSync(world);
+      this.emergencyMaybePresent = true;
+      return true;
+    } catch {
+      return false; // quota dépassé, stockage bloqué… : ignoré
+    }
+  }
+
+  async clear(): Promise<void> {
+    try {
+      this.emergency.clearSync();
+      this.emergencyMaybePresent = false;
+    } catch {
+      /* ignoré */
+    }
+    await this.primary.clear();
+  }
+
+  /** Urgence présente mais illisible (corrompue, autre version…) : effacée. */
+  private dropUnreadableEmergency(): void {
+    try {
+      if (this.emergency.peekSavedAt() !== null) this.emergency.clearSync();
+      this.emergencyMaybePresent = false;
+    } catch {
+      /* ignoré */
+    }
+  }
+
+  private dropEmergencyIfNotNewerThan(savedAt: number): void {
+    if (!this.emergencyMaybePresent) return;
+    try {
+      const t = this.emergency.peekSavedAt();
+      if (t === null) {
+        this.emergencyMaybePresent = false;
+      } else if (!(t > savedAt)) {
+        // Plus ancienne (ou égale, ou illisible) que l'écriture confirmée : inutile.
+        this.emergency.clearSync();
+        this.emergencyMaybePresent = false;
+      }
+    } catch {
+      /* ignoré */
+    }
   }
 }
 
@@ -284,16 +425,28 @@ function localStorageUsable(): KeyValueStorage | null {
   }
 }
 
+export interface CreateSaveStoreOptions {
+  /**
+   * Stockage synchrone de la sauvegarde d'urgence quand IndexedDB est utilisé.
+   * Défaut : `localStorage` s'il est utilisable ; `null` pour désactiver.
+   */
+  emergencyStorage?: KeyValueStorage | null;
+  /** Pour les tests : options du store IndexedDB. */
+  indexedDb?: IndexedDbSaveStoreOptions;
+}
+
 /**
- * IndexedDB si la base s'ouvre, sinon localStorage (RLE + base64), sinon mémoire.
+ * IndexedDB si la base s'ouvre (doublé d'une sauvegarde d'urgence synchrone en localStorage
+ * quand il est utilisable), sinon localStorage (RLE + base64), sinon mémoire.
  * Ne rejette jamais.
  */
-export async function createSaveStore(): Promise<SaveStore> {
+export async function createSaveStore(opts: CreateSaveStoreOptions = {}): Promise<SaveStore> {
   try {
-    const idb = new IndexedDbSaveStore();
+    const idb = new IndexedDbSaveStore(opts.indexedDb);
     await idb.open();
     lastSaveBackend = 'indexeddb';
-    return idb;
+    const emergency = opts.emergencyStorage !== undefined ? opts.emergencyStorage : localStorageUsable();
+    return emergency ? new EmergencyBackedSaveStore(idb, emergency) : idb;
   } catch {
     /* repli */
   }

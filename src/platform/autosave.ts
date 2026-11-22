@@ -4,9 +4,13 @@
  * - intervalle max : jamais plus de `maxIntervalMs` entre la 1re modification non sauvée et l'écriture,
  *   même si l'enfant construit sans arrêt ;
  * - sauvegarde immédiate quand la page passe en arrière-plan (`visibilitychange` → hidden) ou `pagehide` ;
+ *   si le store le permet (`saveEmergency`, cf. `EmergencyBackedSaveStore`), une sauvegarde d'urgence
+ *   SYNCHRONE est écrite avant de lancer l'écriture asynchrone, qui peut ne jamais aboutir si la page
+ *   est détruite juste après ;
  * - jamais deux écritures concurrentes : une demande pendant une écriture est mise en file (une seule).
  */
 import type { SavedWorld, SaveStore } from '../core/types';
+import { hasEmergencySave } from './save';
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
@@ -75,6 +79,10 @@ export function createAutosave(
   let inFlight: Promise<void> | null = null;
   let queued: Promise<void> | null = null;
   let disposed = false;
+  /** Compteur de modifications ; dernière génération écrite avec succès / en urgence. */
+  let changeGen = 0;
+  let confirmedGen = 0;
+  let emergencyGen = 0;
 
   function clearTimer(): void {
     if (timer !== null) {
@@ -101,8 +109,10 @@ export function createAutosave(
     firstDirtyAt = null;
     const p = (async () => {
       try {
+        const gen = changeGen;
         const state = getState();
         await store.save(state);
+        if (gen > confirmedGen) confirmedGen = gen;
       } catch (err) {
         onError(err);
         // On réessaiera au prochain déclenchement (au plus tard maxIntervalMs).
@@ -137,13 +147,31 @@ export function createAutosave(
   function markDirty(): void {
     if (disposed) return;
     dirty = true;
+    changeGen++;
     schedule();
   }
 
+  /** Écriture d'urgence synchrone si des modifications ne sont pas encore confirmées. */
+  function emergencySave(): void {
+    if (!hasEmergencySave(store)) return;
+    if (changeGen === confirmedGen || changeGen === emergencyGen) return;
+    let state: SavedWorld;
+    try {
+      state = getState();
+    } catch (err) {
+      onError(err);
+      return;
+    }
+    if (store.saveEmergency(state)) emergencyGen = changeGen;
+  }
+
   const onVisibility = (): void => {
-    if (doc?.visibilityState === 'hidden') void flush();
+    if (doc?.visibilityState !== 'hidden') return;
+    emergencySave();
+    void flush();
   };
   const onPageHide = (): void => {
+    emergencySave();
     void flush();
   };
   doc?.addEventListener('visibilitychange', onVisibility);

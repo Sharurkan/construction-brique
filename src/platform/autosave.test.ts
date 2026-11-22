@@ -251,3 +251,102 @@ describe('createAutosave', () => {
     a.dispose();
   });
 });
+
+/** SlowStore doté d'une sauvegarde d'urgence synchrone (journalise l'ordre des appels). */
+class EmergencyStore extends SlowStore {
+  emergencies: SavedWorld[] = [];
+  log: string[] = [];
+  emergencyOk = true;
+  saveEmergency(w: SavedWorld): boolean {
+    this.log.push('emergency');
+    if (!this.emergencyOk) return false;
+    this.emergencies.push(w);
+    return true;
+  }
+  override async save(w: SavedWorld) {
+    this.log.push('save');
+    await super.save(w);
+  }
+}
+
+describe("createAutosave : sauvegarde d'urgence", () => {
+  let doc: FakeTarget;
+  let win: FakeTarget;
+  let seq: number;
+  const getState = () => state(++seq);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    doc = new FakeTarget();
+    win = new FakeTarget();
+    seq = 0;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function make(store: SaveStore) {
+    return createAutosave(store, getState, { documentTarget: doc, windowTarget: win, onError: () => {} });
+  }
+
+  it("hidden : écrit l'urgence de façon synchrone, avant l'écriture asynchrone", () => {
+    const store = new EmergencyStore(1000);
+    const a = make(store);
+    a.markDirty();
+    doc.visibilityState = 'hidden';
+    doc.dispatch('visibilitychange');
+    // Aucune attente : l'urgence est déjà écrite au retour du gestionnaire.
+    expect(store.emergencies.length).toBe(1);
+    expect(store.log).toEqual(['emergency', 'save']);
+    a.dispose();
+  });
+
+  it('pagehide après hidden sans nouvelle modification : pas de seconde urgence', () => {
+    const store = new EmergencyStore(1000);
+    const a = make(store);
+    a.markDirty();
+    doc.visibilityState = 'hidden';
+    doc.dispatch('visibilitychange');
+    win.dispatch('pagehide');
+    expect(store.emergencies.length).toBe(1);
+    a.markDirty();
+    win.dispatch('pagehide');
+    expect(store.emergencies.length).toBe(2);
+    a.dispose();
+  });
+
+  it("pagehide seul déclenche aussi l'urgence", () => {
+    const store = new EmergencyStore(1000);
+    const a = make(store);
+    a.markDirty();
+    win.dispatch('pagehide');
+    expect(store.emergencies.length).toBe(1);
+    a.dispose();
+  });
+
+  it("rien de modifié ou déjà confirmé : pas d'urgence", async () => {
+    const store = new EmergencyStore();
+    const a = make(store);
+    win.dispatch('pagehide');
+    expect(store.emergencies.length).toBe(0);
+    a.markDirty();
+    await a.flush();
+    expect(store.saves.length).toBe(1);
+    win.dispatch('pagehide');
+    expect(store.emergencies.length).toBe(0);
+    a.dispose();
+  });
+
+  it("urgence en échec (quota) : ignorée, retentée au masquage suivant", () => {
+    const store = new EmergencyStore(1000);
+    store.emergencyOk = false;
+    const a = make(store);
+    a.markDirty();
+    win.dispatch('pagehide');
+    expect(store.emergencies.length).toBe(0);
+    store.emergencyOk = true;
+    win.dispatch('pagehide');
+    expect(store.emergencies.length).toBe(1);
+    a.dispose();
+  });
+});

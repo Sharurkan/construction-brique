@@ -1,7 +1,10 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { SAVE_VERSION, WORLD_SIZE_X, WORLD_SIZE_Y, WORLD_SIZE_Z, type SavedWorld } from '../core/types';
+import { SAVE_VERSION, WORLD_SIZE_X, WORLD_SIZE_Y, WORLD_SIZE_Z, type SavedWorld, type SaveStore } from '../core/types';
 import {
+  EMERGENCY_SAVE_KEY,
+  EmergencyBackedSaveStore,
+  hasEmergencySave,
   IndexedDbSaveStore,
   LocalStorageSaveStore,
   MemorySaveStore,
@@ -178,9 +181,140 @@ describe('MemorySaveStore', () => {
 });
 
 describe('createSaveStore', () => {
-  it('choisit IndexedDB quand disponible', async () => {
-    const store = await createSaveStore();
+  it('choisit IndexedDB quand disponible (sans localStorage : pas d’urgence)', async () => {
+    const store = await createSaveStore({ emergencyStorage: null });
     expect(store).toBeInstanceOf(IndexedDbSaveStore);
     expect(lastSaveBackend).toBe('indexeddb');
+  });
+
+  it('IndexedDB + localStorage : enveloppe avec la sauvegarde d’urgence', async () => {
+    const store = await createSaveStore({ emergencyStorage: new FakeStorage() });
+    expect(store).toBeInstanceOf(EmergencyBackedSaveStore);
+    expect((store as EmergencyBackedSaveStore).primary).toBeInstanceOf(IndexedDbSaveStore);
+    expect(hasEmergencySave(store)).toBe(true);
+    expect(lastSaveBackend).toBe('indexeddb');
+  });
+});
+
+/** Délègue la lecture à `inner` mais n'achève jamais une écriture (page détruite pendant l'écriture). */
+class NeverFinishingStore implements SaveStore {
+  constructor(private inner: SaveStore) {}
+  load() {
+    return this.inner.load();
+  }
+  save(): Promise<void> {
+    return new Promise(() => {});
+  }
+  clear() {
+    return this.inner.clear();
+  }
+}
+
+async function until(cond: () => Promise<boolean> | boolean): Promise<void> {
+  for (let i = 0; i < 200; i++) {
+    if (await cond()) return;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  throw new Error('condition jamais atteinte');
+}
+
+describe('EmergencyBackedSaveStore', () => {
+  function setup() {
+    const dbName = `test-db-${++dbCounter}`;
+    const storage = new FakeStorage();
+    const idb = () => new IndexedDbSaveStore({ dbName });
+    return { storage, idb };
+  }
+
+  it('écriture IndexedDB pas finie + urgence : le rechargement récupère l’état le plus récent', async () => {
+    const { storage, idb } = setup();
+    await idb().save(makeWorld({ seed: 1, savedAt: 1000 }));
+
+    // Session 1 : un bloc est posé, la page passe en arrière-plan puis est détruite.
+    const session1 = new EmergencyBackedSaveStore(new NeverFinishingStore(idb()), storage);
+    const latest = makeWorld({ seed: 2, savedAt: 2000 });
+    latest.blocks[12345] = 7;
+    expect(session1.saveEmergency(latest)).toBe(true);
+    void session1.save(latest); // n'aboutit jamais
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).not.toBeNull();
+
+    // Rechargement.
+    const session2 = new EmergencyBackedSaveStore(idb(), storage);
+    const back = await session2.load();
+    expect(back).not.toBeNull();
+    expect(back!.seed).toBe(2);
+    expect(back!.savedAt).toBe(2000);
+    expect(back!.blocks[12345]).toBe(7);
+    expect(back!.blocks).toEqual(latest.blocks);
+
+    // L'urgence est recopiée dans IndexedDB puis effacée.
+    await until(() => storage.getItem(EMERGENCY_SAVE_KEY) === null);
+    expect((await idb().load())!.savedAt).toBe(2000);
+  });
+
+  it('urgence plus ancienne que IndexedDB : ignorée', async () => {
+    const { storage, idb } = setup();
+    new LocalStorageSaveStore(storage, EMERGENCY_SAVE_KEY).saveSync(makeWorld({ seed: 1, savedAt: 1000 }));
+    await idb().save(makeWorld({ seed: 2, savedAt: 3000 }));
+    const back = await new EmergencyBackedSaveStore(idb(), storage).load();
+    expect(back!.seed).toBe(2);
+    expect(back!.savedAt).toBe(3000);
+  });
+
+  it('urgence seule (IndexedDB vide) : récupérée', async () => {
+    const { storage, idb } = setup();
+    const s = new EmergencyBackedSaveStore(idb(), storage);
+    s.saveEmergency(makeWorld({ seed: 9, savedAt: 500 }));
+    expect((await new EmergencyBackedSaveStore(idb(), storage).load())!.seed).toBe(9);
+  });
+
+  it.each([
+    ['JSON invalide', '{pas du json'],
+    ['blocs illisibles', JSON.stringify({ encoding: 'rle-base64', blocks: '@@@', sizeX: 4, sizeY: 4, sizeZ: 4, savedAt: 9e12 })],
+    ['mauvais encodage', JSON.stringify({ ...makeWorld({ savedAt: 9e12 }), blocks: [1, 2, 3] })],
+  ])('urgence corrompue (%s) : ignorée puis effacée', async (_n, raw) => {
+    const { storage, idb } = setup();
+    await idb().save(makeWorld({ seed: 3, savedAt: 1000 }));
+    storage.setItem(EMERGENCY_SAVE_KEY, raw);
+    const s = new EmergencyBackedSaveStore(idb(), storage);
+    const back = await s.load();
+    expect(back!.seed).toBe(3);
+    await s.save(makeWorld({ seed: 4, savedAt: 1500 }));
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).toBeNull();
+  });
+
+  it('urgence corrompue sans IndexedDB : null, sans exception', async () => {
+    const { storage, idb } = setup();
+    storage.setItem(EMERGENCY_SAVE_KEY, 'n’importe quoi');
+    expect(await new EmergencyBackedSaveStore(idb(), storage).load()).toBeNull();
+  });
+
+  it('écriture IndexedDB confirmée : efface l’urgence seulement si elle n’est pas plus récente', async () => {
+    const { storage, idb } = setup();
+    const s = new EmergencyBackedSaveStore(idb(), storage);
+    s.saveEmergency(makeWorld({ savedAt: 2000 }));
+    await s.save(makeWorld({ savedAt: 1500 })); // écriture plus ancienne (lancée avant l'urgence)
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).not.toBeNull();
+    await s.save(makeWorld({ savedAt: 2500 }));
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).toBeNull();
+  });
+
+  it('quota localStorage dépassé : ignoré silencieusement', async () => {
+    const { storage, idb } = setup();
+    storage.quota = 10;
+    const s = new EmergencyBackedSaveStore(idb(), storage);
+    expect(() => s.saveEmergency(makeWorld())).not.toThrow();
+    expect(s.saveEmergency(makeWorld())).toBe(false);
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).toBeNull();
+  });
+
+  it('clear() efface les deux', async () => {
+    const { storage, idb } = setup();
+    const s = new EmergencyBackedSaveStore(idb(), storage);
+    await s.save(makeWorld({ savedAt: 1000 }));
+    s.saveEmergency(makeWorld({ savedAt: 2000 }));
+    await s.clear();
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).toBeNull();
+    expect(await s.load()).toBeNull();
   });
 });
