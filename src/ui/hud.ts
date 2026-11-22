@@ -42,6 +42,8 @@ export interface HudOptions {
   onCredits?: () => void;
   /** Bouton son. Absent = bouton visible mais désactivé (emplacement réservé). */
   onSoundToggle?: (enabled: boolean) => void;
+  /** État initial du bouton son (préférence mémorisée). Défaut true. Ne déclenche pas `onSoundToggle`. */
+  initialSoundOn?: boolean;
   /** Appelé à chaque appui sur un bouton (sons de clic en Phase 2). */
   onButtonPress?: () => void;
   /** Durée de l'appui long « nouveau monde ». Défaut 2000 ms. */
@@ -183,9 +185,10 @@ export class Hud {
       if (icon) renderIconInto(icon, this.isFullscreen() ? 'fullscreenExit' : 'fullscreen');
     });
 
-    const soundBtn = this.button('soundOn', 'cb-btn-sound', 'Son');
+    this.soundOn = opts.initialSoundOn ?? true;
+    const soundBtn = this.button(this.soundOn ? 'soundOn' : 'soundOff', 'cb-btn-sound', 'Son');
     if (opts.onSoundToggle) {
-      soundBtn.setAttribute('aria-pressed', 'true');
+      soundBtn.setAttribute('aria-pressed', String(this.soundOn));
       this.on(soundBtn, 'click', () => {
         this.soundOn = !this.soundOn;
         soundBtn.setAttribute('aria-pressed', String(this.soundOn));
