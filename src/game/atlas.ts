@@ -1,6 +1,6 @@
 import { ALL_TILE_KEYS, createAtlasFromImages, createPlaceholderAtlas, type TextureAtlas } from '../engine';
 import type { TileKey } from '../core/types';
-import { TEXTURE_TILES, TILE_SIZE, WOOL_TINTS } from '../assets/manifest';
+import { GEM_BLOCK_TILES, TEXTURE_TILES, TILE_SIZE, WOOL_TINTS } from '../assets/manifest';
 
 /**
  * Atlas des blocs construit à partir des vraies tuiles Kenney (Voxel Pack, CC0).
@@ -12,7 +12,7 @@ import { TEXTURE_TILES, TILE_SIZE, WOOL_TINTS } from '../assets/manifest';
  *   deviennent de la bouillie.
  * - L'atlas n'a pas de mipmaps (NearestFilter, pour éviter les coutures du fract()) : des
  *   tuiles de 128 px scintillent nettement au loin ; 64 px divise ce scintillement par deux.
- * - Mémoire GPU : ~5×5 cellules de 68 px ≈ 340² px ≈ 0,5 Mo (contre ≈ 1,8 Mo à 128 px).
+ * - Mémoire GPU : ~6×6 cellules de 68 px ≈ 408² px ≈ 0,7 Mo (contre ≈ 2,6 Mo à 128 px).
  */
 export const ATLAS_TILE_SIZE = 64;
 const ATLAS_PADDING = 2;
@@ -24,12 +24,6 @@ export interface BlockTextures {
   /** Tuiles finales (taille ATLAS_TILE_SIZE) par clé, ou null si atlas provisoire. */
   tiles: Map<TileKey, Canvas> | null;
 }
-
-/** Alias : clé attendue par BLOCKS → clé du manifeste. */
-const TILE_ALIASES: Record<string, string> = {
-  diamond_block: 'diamond',
-  gold_block: 'gold',
-};
 
 /**
  * Couleurs finales des laines (base du teintage). Reprend WOOL_TINTS, sauf :
@@ -120,6 +114,52 @@ export function tintWool(base: Canvas, color: number, contrast = 1.25): Canvas {
   return out;
 }
 
+/**
+ * Bloc précieux plein (or, diamant) à partir d'une tuile Kenney lisse : transformation de
+ * couleur seule. La couleur cible remplace la teinte ; le relief de la tuile (écart de
+ * luminance de chaque pixel à la moyenne, normalisé par l'écart-type pour que les motifs
+ * discrets de la glace ressortent) est ajouté par-dessus, en `amplitude` niveaux par écart-type.
+ * Résultat opaque (les pixels transparents de la base prennent la couleur cible).
+ */
+export function recolorGem(base: Canvas, color: number, amplitude = 26): Canvas {
+  const size = base.width;
+  const src = ctx2d(base).getImageData(0, 0, size, size).data;
+  const lum = new Float32Array(size * size);
+  let sum = 0;
+  let sum2 = 0;
+  let n = 0;
+  for (let i = 0; i < lum.length; i++) {
+    const p = i * 4;
+    const a = src[p + 3] / 255;
+    // Pixel (semi-)transparent : composé sur blanc, comme le verre posé sur un fond clair.
+    const l = 0.299 * src[p] + 0.587 * src[p + 1] + 0.114 * src[p + 2];
+    lum[i] = l * a + 255 * (1 - a);
+    sum += lum[i];
+    sum2 += lum[i] * lum[i];
+    n++;
+  }
+  const mean = sum / n;
+  const std = Math.max(1, Math.sqrt(Math.max(0, sum2 / n - mean * mean)));
+  const r = (color >> 16) & 255;
+  const g = (color >> 8) & 255;
+  const b = color & 255;
+  const out = makeCanvas(size);
+  const octx = ctx2d(out);
+  const img = octx.createImageData(size, size);
+  for (let i = 0; i < lum.length; i++) {
+    const p = i * 4;
+    // Écart borné à ±2,5 σ : les reflets restent des reflets, sans brûler toute la tuile.
+    const z = Math.max(-2.5, Math.min(2.5, (lum[i] - mean) / std));
+    const d = z * amplitude;
+    img.data[p] = clamp(r + d);
+    img.data[p + 1] = clamp(g + d);
+    img.data[p + 2] = clamp(b + d);
+    img.data[p + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
+}
+
 function clamp(v: number): number {
   return v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
 }
@@ -130,7 +170,6 @@ function manifestKeyFor(key: TileKey): string | null {
   // couleurs terreuses : le rouge Kenney se confond avec la brique). Cohérence des 9 couleurs.
   if (key.startsWith('wool_')) return null;
   if (key in TEXTURE_TILES) return key;
-  if (key in TILE_ALIASES) return TILE_ALIASES[key];
   return null;
 }
 
@@ -142,6 +181,8 @@ export async function loadBlockTextures(debug = false): Promise<BlockTextures> {
     for (const key of ALL_TILE_KEYS) {
       const m = manifestKeyFor(key);
       if (m) needed.add(m);
+      const gem = GEM_BLOCK_TILES[key];
+      if (gem) needed.add(gem.base);
     }
     const loaded = new Map<string, Canvas>();
     await Promise.all(
@@ -161,6 +202,11 @@ export async function loadBlockTextures(debug = false): Promise<BlockTextures> {
       const wool = /^wool_(\w+)$/.exec(key);
       if (wool && wool[1] in WOOL_TARGET) {
         tiles.set(key, tintWool(woolBase, WOOL_TARGET[wool[1]]));
+        continue;
+      }
+      const gem = GEM_BLOCK_TILES[key];
+      if (gem && loaded.has(gem.base)) {
+        tiles.set(key, recolorGem(loaded.get(gem.base)!, gem.color));
         continue;
       }
       // Clé inconnue : tuile la plus proche (même préfixe), sinon damier « manquant ».
