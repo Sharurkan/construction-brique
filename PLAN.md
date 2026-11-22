@@ -35,7 +35,7 @@ Dépôt : `Sharurkan/construction-brique` → https://sharurkan.github.io/constr
 - [x] Phase 0 : plan, contrats (`src/core/types.ts`), squelette Vite, dépôt git local.
 - [x] Phase 1 (parallèle) : A textures → galerie · B sons/UI → galerie · C moteur · D contrôles/UI · E PWA/sauvegarde/CI.
 - [x] **Point d'arrêt** : choix fait : T1 Kenney Voxel Pack, S1 sons Kenney, I1 Kenney Mobile Controls (+ Kenney Game Icons pour les manques), P1 Andika.
-- [ ] Phase 2 (parallèle) : intégration assets + CREDITS.md + écran crédits · sons · réglages perf · tests (unitaires + viewport tablette) · relecture par un agent tiers.
+- [x] Phase 2 (parallèle) : intégration assets + CREDITS.md + écran crédits · sons · réglages perf · tests (unitaires + viewport tablette) · relecture par un agent tiers.
 - [ ] Phase 3 : premier push (avec accord), déploiement Pages, vérif chargement + installation, test tablette.
 
 ## Règles
