@@ -1,0 +1,294 @@
+/* Interface du jeu (Agent D) : HUD tactile sans texte, joystick, overlay portrait. */
+
+:root {
+  --cb-safe-t: env(safe-area-inset-top, 0px);
+  --cb-safe-r: env(safe-area-inset-right, 0px);
+  --cb-safe-b: env(safe-area-inset-bottom, 0px);
+  --cb-safe-l: env(safe-area-inset-left, 0px);
+  --cb-margin: 16px;
+  --cb-big: 100px;     /* SAUTER */
+  --cb-action: 92px;   /* CASSER / POSER */
+  --cb-small: 60px;    /* boutons du haut */
+  --cb-slot: 58px;     /* palette */
+  --cb-red: #ff4f5a;
+  --cb-green: #2fc65a;
+  --cb-blue: #3a8dff;
+  --cb-purple: #9b5cff;
+  --cb-orange: #ff9a1f;
+  --cb-yellow: #ffc61a;
+  --cb-teal: #14b8a6;
+  --cb-slate: #4b5d7a;
+  --cb-ink: #1d2433;
+}
+
+/* Écrans plus petits (ex. 1024×600, téléphones paysage) : boutons un peu réduits mais >= 64 px. */
+@media (max-height: 640px) {
+  :root { --cb-big: 92px; --cb-action: 84px; --cb-small: 56px; --cb-slot: 54px; --cb-margin: 12px; }
+}
+@media (max-height: 420px) {
+  :root { --cb-big: 76px; --cb-action: 70px; --cb-small: 48px; --cb-slot: 48px; --cb-margin: 8px; }
+}
+
+html, body {
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cb-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+.cb-hud * { box-sizing: border-box; }
+.cb-hud img, .cb-hud svg { -webkit-user-drag: none; pointer-events: none; }
+
+/* ---------- Boutons ---------- */
+.cb-btn {
+  --c: var(--cb-slate);
+  pointer-events: auto;
+  position: absolute;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 4px solid rgba(255, 255, 255, 0.85);
+  border-radius: 30%;
+  background: var(--c);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%);
+  color: #fff;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.28), 0 8px 18px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, filter 80ms ease-out;
+}
+.cb-btn .cb-icon { width: 58%; height: 58%; display: block; }
+.cb-btn .cb-icon svg, .cb-btn .cb-icon img { width: 100%; height: 100%; display: block; }
+.cb-btn.is-pressed, .cb-btn:active {
+  transform: translateY(4px) scale(0.9);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.2);
+  filter: brightness(1.18) saturate(1.1);
+  border-color: #fff;
+}
+.cb-btn:focus-visible { outline: 4px solid #fff; outline-offset: 3px; }
+.cb-btn[aria-disabled='true'] { opacity: 0.4; filter: grayscale(0.6); }
+.cb-btn[aria-disabled='true'].is-pressed { transform: none; }
+
+/* Grappe d'actions pour le pouce droit. */
+.cb-actions {
+  position: absolute;
+  right: calc(var(--cb-margin) + var(--cb-safe-r));
+  bottom: calc(var(--cb-margin) + var(--cb-safe-b));
+  width: calc(var(--cb-big) + var(--cb-action) + 18px);
+  height: calc(var(--cb-big) + var(--cb-action) + 18px);
+  pointer-events: none;
+}
+.cb-btn-jump { --c: var(--cb-blue); width: var(--cb-big); height: var(--cb-big); right: 0; bottom: 0; border-radius: 50%; }
+.cb-btn-place { --c: var(--cb-green); width: var(--cb-action); height: var(--cb-action);
+  right: calc(var(--cb-big) + 18px); bottom: calc((var(--cb-big) - var(--cb-action)) / 2); }
+.cb-btn-break { --c: var(--cb-red); width: var(--cb-action); height: var(--cb-action);
+  right: calc((var(--cb-big) - var(--cb-action)) / 2); bottom: calc(var(--cb-big) + 18px); }
+.cb-btn-descend { --c: var(--cb-purple); width: 70px; height: 70px;
+  right: calc(var(--cb-big) + 30px); bottom: calc(var(--cb-big) + 30px); border-radius: 50%; }
+.cb-btn-descend[hidden] { display: none; }
+
+/* Pastille du bloc sélectionné sur le bouton POSER. */
+.cb-place-swatch {
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 3px solid #fff;
+  background-size: cover;
+  image-rendering: pixelated;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- Palette ---------- */
+.cb-palette {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--cb-margin) / 2 + var(--cb-safe-b));
+  /* Réserve la place du joystick (gauche) et des boutons (droite). */
+  max-width: calc(100% - 2 * (var(--cb-big) + var(--cb-action) + 18px + var(--cb-margin) * 2) - var(--cb-safe-l) - var(--cb-safe-r));
+  display: flex;
+  gap: 10px;
+  padding: 16px 14px 10px;
+  border-radius: 24px;
+  background: rgba(20, 30, 50, 0.38);
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.cb-palette::-webkit-scrollbar { display: none; }
+.cb-slot {
+  flex: 0 0 auto;
+  position: relative;
+  width: var(--cb-slot);
+  height: var(--cb-slot);
+  padding: 0;
+  margin: 0;
+  border: 3px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  background: none;
+  cursor: pointer;
+  touch-action: pan-x;
+  outline: none;
+  transition: transform 100ms ease-out, border-color 100ms;
+}
+.cb-slot .cb-swatch {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  /* Faux relief de bloc. */
+  box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.3), inset 0 -6px 0 rgba(0, 0, 0, 0.25);
+}
+.cb-slot .cb-swatch canvas { width: 100%; height: 100%; border-radius: 10px; image-rendering: pixelated; }
+.cb-slot.is-pressed { transform: scale(0.9); }
+.cb-slot[aria-checked='true'] {
+  border: 4px solid #fff;
+  transform: translateY(-5px) scale(1.12);
+  box-shadow: 0 0 0 3px var(--cb-ink), 0 6px 14px rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
+.cb-slot:focus-visible { outline: 3px solid var(--cb-yellow); outline-offset: 2px; }
+
+/* ---------- Réticule ---------- */
+.cb-reticle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.cb-reticle::before, .cb-reticle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55);
+  transform: translate(-50%, -50%);
+}
+.cb-reticle::before { width: 30px; height: 4px; }
+.cb-reticle::after { width: 4px; height: 30px; }
+
+/* ---------- Haut ---------- */
+.cb-top-right, .cb-top-left {
+  position: absolute;
+  top: calc(var(--cb-margin) + var(--cb-safe-t));
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  pointer-events: none;
+}
+.cb-top-right { right: calc(var(--cb-margin) + var(--cb-safe-r)); flex-direction: row-reverse; }
+.cb-top-left { left: calc(var(--cb-margin) + var(--cb-safe-l)); }
+.cb-top-right .cb-btn, .cb-top-left .cb-btn { position: relative; width: var(--cb-small); height: var(--cb-small); }
+.cb-btn-new { --c: var(--cb-orange); width: calc(var(--cb-small) + 12px) !important; height: calc(var(--cb-small) + 12px) !important; border-radius: 50%; }
+.cb-btn-fullscreen { --c: var(--cb-slate); }
+.cb-btn-credits { --c: var(--cb-yellow); }
+.cb-btn-sound { --c: var(--cb-teal); }
+.cb-btn-fly { --c: #29a8e0; }
+.cb-btn-fly[aria-pressed='true'] { --c: var(--cb-purple); box-shadow: 0 0 0 4px #fff, 0 6px 0 rgba(0, 0, 0, 0.28); }
+
+/* Anneau de progression de l'appui long. */
+.cb-ring {
+  position: absolute;
+  inset: -12px;
+  width: calc(100% + 24px);
+  height: calc(100% + 24px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+  overflow: visible;
+}
+.cb-ring circle { fill: none; stroke-width: 8; }
+.cb-ring .cb-ring-track { stroke: rgba(0, 0, 0, 0.18); opacity: 0; transition: opacity 120ms; }
+.cb-ring .cb-ring-fill { stroke: #fff; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.5)); }
+.cb-btn-new.is-charging .cb-ring-track { opacity: 1; }
+.cb-btn-new.is-done { animation: cb-pop 400ms ease-out; }
+@keyframes cb-pop {
+  0% { transform: scale(0.9); }
+  50% { transform: scale(1.25); filter: brightness(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- Joystick (créé par InputManager) ---------- */
+.cb-joy-base {
+  position: absolute;
+  left: calc(var(--cb-margin) + var(--cb-safe-l) + 90px);
+  top: calc(100% - var(--cb-margin) - var(--cb-safe-b) - 90px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.28));
+  border: 4px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  opacity: 0.35;
+  z-index: 5;
+  transition: opacity 120ms;
+}
+.cb-joy-base.is-active { opacity: 1; transition: none; }
+.cb-joy-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  background: #fff;
+  background-image: radial-gradient(circle at 35% 30%, #fff, #d9e6ff);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+}
+
+/* ---------- Overlay portrait ---------- */
+.cb-rotate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  place-items: center;
+  background: linear-gradient(160deg, #7ec8ff, #3a8dff);
+  color: #fff;
+  pointer-events: auto;
+  touch-action: none;
+}
+.cb-rotate .cb-icon { width: min(45vw, 220px); height: min(45vw, 220px); animation: cb-tilt 2.4s ease-in-out infinite; }
+.cb-rotate .cb-icon svg, .cb-rotate .cb-icon img { width: 100%; height: 100%; }
+@keyframes cb-tilt {
+  0%, 25% { transform: rotate(0deg); }
+  55%, 85% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+@media (orientation: portrait) {
+  .cb-rotate { display: grid; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cb-rotate .cb-icon { animation: none; }
+  .cb-btn, .cb-slot { transition: none; }
+}

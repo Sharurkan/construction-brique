@@ -1,45 +1,46 @@
+import '../ui/styles.css';
 import type { InputState } from '../core/types';
 import {
   computeJoystick, dragToLook, isTap, keysToMove, keyToMoveDir, keyToSlot, mergeMove, type MoveDir,
 } from './gestures';
 
 /**
- * Attribut posé sur tout élément d'interface : un doigt qui commence dessus
- * ne déplace JAMAIS la caméra ni le joystick.
+ * Attribut posÃ© sur tout Ã©lÃ©ment d'interface : un doigt qui commence dessus
+ * ne dÃ©place JAMAIS la camÃ©ra ni le joystick.
  */
 export const NO_LOOK_ATTR = 'data-no-look';
 
 /**
- * État d'entrée étendu (interne à l'Agent D). `InputState` du contrat n'a pas de « descendre »
- * pour le mode vol : on l'ajoute ici, `Player.update` le lit s'il est présent.
+ * Ã‰tat d'entrÃ©e Ã©tendu (interne Ã  l'Agent D). `InputState` du contrat n'a pas de Â« descendre Â»
+ * pour le mode vol : on l'ajoute ici, `Player.update` le lit s'il est prÃ©sent.
  */
 export interface ExtendedInputState extends InputState {
-  /** Descendre en mode vol (Maj au clavier, bouton dédié en tactile). */
+  /** Descendre en mode vol (Maj au clavier, bouton dÃ©diÃ© en tactile). */
   descend: boolean;
 }
 
 export interface InputOptions {
-  /** Sensibilité du regard tactile, en radians par pixel. Défaut 0.0055. */
+  /** SensibilitÃ© du regard tactile, en radians par pixel. DÃ©faut 0.0055. */
   touchLookSensitivity?: number;
-  /** Sensibilité souris (Pointer Lock), en radians par pixel. Défaut 0.0025. */
+  /** SensibilitÃ© souris (Pointer Lock), en radians par pixel. DÃ©faut 0.0025. */
   mouseLookSensitivity?: number;
-  /** Diamètre de la base du joystick en px (>= 140). Défaut 150. */
+  /** DiamÃ¨tre de la base du joystick en px (>= 140). DÃ©faut 150. */
   joystickSize?: number;
-  /** Zone morte du joystick (fraction du rayon). Défaut 0.15. */
+  /** Zone morte du joystick (fraction du rayon). DÃ©faut 0.15. */
   deadZone?: number;
-  /** Tap court sur la zone de regard (ne fait rien par défaut). Coordonnées client. */
+  /** Tap court sur la zone de regard (ne fait rien par dÃ©faut). CoordonnÃ©es client. */
   onTap?: (x: number, y: number) => void;
-  /** Clic gauche (souris capturée) : casser. */
+  /** Clic gauche (souris capturÃ©e) : casser. */
   onPrimary?: () => void;
-  /** Clic droit (souris capturée) : poser. */
+  /** Clic droit (souris capturÃ©e) : poser. */
   onSecondary?: () => void;
-  /** Touches 1–9 : index de bloc dans la palette (0..8). */
+  /** Touches 1â€“9 : index de bloc dans la palette (0..8). */
   onSlot?: (index: number) => void;
-  /** Molette : +1 bloc suivant, -1 bloc précédent. */
+  /** Molette : +1 bloc suivant, -1 bloc prÃ©cÃ©dent. */
   onScroll?: (delta: 1 | -1) => void;
   /** Touche F : bascule le mode vol. */
   onToggleFly?: () => void;
-  /** Demande le Pointer Lock au clic souris (PC). Défaut true. */
+  /** Demande le Pointer Lock au clic souris (PC). DÃ©faut true. */
   pointerLock?: boolean;
 }
 
@@ -56,8 +57,8 @@ interface TrackedPointer {
 }
 
 /**
- * Fusionne tactile (joystick flottant à gauche, regard à droite) et clavier/souris.
- * Lecture par frame : `state` (move/jump en continu) puis `consumeLook()` pour la rotation accumulée.
+ * Fusionne tactile (joystick flottant Ã  gauche, regard Ã  droite) et clavier/souris.
+ * Lecture par frame : `state` (move/jump en continu) puis `consumeLook()` pour la rotation accumulÃ©e.
  */
 export class InputManager {
   readonly state: ExtendedInputState = { move: { x: 0, z: 0 }, look: { yaw: 0, pitch: 0 }, jump: false, descend: false };
@@ -88,7 +89,7 @@ export class InputManager {
     element.style.userSelect = 'none';
     if (getComputedStyle(element).position === 'static') element.style.position = 'relative';
 
-    // Visuel du joystick flottant (masqué tant qu'aucun doigt n'est posé).
+    // Visuel du joystick flottant (masquÃ© tant qu'aucun doigt n'est posÃ©).
     const size = Math.max(140, options.joystickSize ?? 150);
     this.joyBase = document.createElement('div');
     this.joyBase.className = 'cb-joy-base';
@@ -114,7 +115,7 @@ export class InputManager {
     this.listen(document, 'visibilitychange', () => { if (document.hidden) this.releaseAll(); });
   }
 
-  /** Renvoie la rotation accumulée depuis le dernier appel et la remet à zéro. */
+  /** Renvoie la rotation accumulÃ©e depuis le dernier appel et la remet Ã  zÃ©ro. */
   consumeLook(): { yaw: number; pitch: number } {
     const out = { yaw: this.state.look.yaw, pitch: this.state.look.pitch };
     this.state.look.yaw = 0;
@@ -122,7 +123,7 @@ export class InputManager {
     return out;
   }
 
-  /** Boutons virtuels de l'interface (SAUTER, DESCENDRE) : à brancher sur le HUD. */
+  /** Boutons virtuels de l'interface (SAUTER, DESCENDRE) : Ã  brancher sur le HUD. */
   setButton(name: 'jump' | 'descend', down: boolean): void {
     this.buttons[name] = down;
     this.refresh();
@@ -179,7 +180,7 @@ export class InputManager {
       e.preventDefault();
       if (!this.pointerLocked) {
         const req = this.element.requestPointerLock?.();
-        // Certains navigateurs renvoient une promesse rejetée au lieu de l'événement d'erreur.
+        // Certains navigateurs renvoient une promesse rejetÃ©e au lieu de l'Ã©vÃ©nement d'erreur.
         if (req && typeof (req as Promise<void>).catch === 'function') {
           (req as Promise<void>).catch(() => { this.mouseLockFailed = true; });
         } else if (!this.element.requestPointerLock) {
@@ -195,11 +196,11 @@ export class InputManager {
     const rect = this.element.getBoundingClientRect();
     const leftHalf = e.clientX - rect.left < rect.width / 2;
     const role: Role = leftHalf ? 'joystick' : 'look';
-    // Un seul doigt par rôle ; les doigts supplémentaires sont ignorés.
+    // Un seul doigt par rÃ´le ; les doigts supplÃ©mentaires sont ignorÃ©s.
     for (const p of this.pointers.values()) if (p.role === role) return;
 
     e.preventDefault();
-    try { this.element.setPointerCapture(e.pointerId); } catch { /* pointeur déjà relâché */ }
+    try { this.element.setPointerCapture(e.pointerId); } catch { /* pointeur dÃ©jÃ  relÃ¢chÃ© */ }
     this.pointers.set(e.pointerId, {
       role, startX: e.clientX, startY: e.clientY, lastX: e.clientX, lastY: e.clientY,
       startTime: performance.now(), maxDist: 0,
@@ -207,7 +208,7 @@ export class InputManager {
 
     if (role === 'joystick') {
       const r = this.joystickRadius();
-      // Le centre reste entièrement à l'écran même si le doigt se pose près d'un bord.
+      // Le centre reste entiÃ¨rement Ã  l'Ã©cran mÃªme si le doigt se pose prÃ¨s d'un bord.
       const cx = Math.min(Math.max(e.clientX - rect.left, r), rect.width - r);
       const cy = Math.min(Math.max(e.clientY - rect.top, r), rect.height - r);
       const p = this.pointers.get(e.pointerId)!;
@@ -250,6 +251,8 @@ export class InputManager {
     if (p.role === 'joystick') {
       this.joystickMove = { x: 0, z: 0 };
       this.joyBase.classList.remove('is-active');
+      this.joyBase.style.left = '';
+      this.joyBase.style.top = '';
       this.joyKnob.style.transform = 'translate(-50%, -50%)';
       this.refresh();
     } else if (allowTap && isTap(performance.now() - p.startTime, p.maxDist)) {
