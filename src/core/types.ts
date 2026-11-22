@@ -16,7 +16,9 @@ export enum BlockId {
   Brick,
   Glass,
   Sand,
+  /** Bloc PLEIN de diamant (tuile Kenney recolorée, voir game/atlas.ts). Le minerai = DiamondOre. */
   Diamond,
+  /** Bloc PLEIN d'or (tuile Kenney recolorée, voir game/atlas.ts). Le minerai = GoldOre. */
   Gold,
   WoolWhite,
   WoolRed,
@@ -29,6 +31,15 @@ export enum BlockId {
   WoolBlack,
   /** Socle indestructible au fond du monde (y = 0). Non présent dans la palette. */
   Bedrock,
+  // Nouveaux blocs : TOUJOURS ajoutés à la fin (les numéros sont stockés dans les sauvegardes).
+  /** Minerais du Voxel Pack (pierre avec éclats). */
+  DiamondOre,
+  GoldOre,
+  EmeraldOre,
+  RubyOre,
+  CoalOre,
+  IronOre,
+  SilverOre,
 }
 
 /** Clé de tuile dans l'atlas (ex. 'grass_top'). L'atlas final viendra du pack choisi en Phase 2. */

@@ -24,6 +24,24 @@ describe('materialOf', () => {
     }
   });
 
+  it('minerais et blocs pleins (or, diamant) → pierre', () => {
+    for (const id of [
+      BlockId.DiamondOre,
+      BlockId.GoldOre,
+      BlockId.EmeraldOre,
+      BlockId.RubyOre,
+      BlockId.CoalOre,
+      BlockId.IronOre,
+      BlockId.SilverOre,
+      BlockId.Diamond,
+      BlockId.Gold,
+    ]) {
+      expect(materialOf(id)).toBe('stone');
+      expect(breakGroupFor(id)).toBe('break_stone');
+      expect(stepGroupFor(id)).toBe('step_stone');
+    }
+  });
+
   it('bloc inconnu ou absent → doux', () => {
     expect(materialOf(undefined)).toBe('soft');
     expect(materialOf(999 as BlockId)).toBe('soft');

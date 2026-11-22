@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { SAVE_VERSION, WORLD_SIZE_X, WORLD_SIZE_Y, WORLD_SIZE_Z, type SavedWorld, type SaveStore } from '../core/types';
+import { World } from '../engine/world';
+import { BlockId, SAVE_VERSION, WORLD_SIZE_X, WORLD_SIZE_Y, WORLD_SIZE_Z, type SavedWorld, type SaveStore } from '../core/types';
 import {
   EMERGENCY_SAVE_KEY,
   EmergencyBackedSaveStore,
@@ -71,6 +72,49 @@ describe('validateSavedWorld', () => {
     ['selected invalide', { ...makeWorld(), selected: 'pierre' }],
   ])('rejette : %s', (_label, raw) => {
     expect(validateSavedWorld(raw)).toBeNull();
+  });
+
+  it('accepte les nouveaux blocs (minerais) dans les blocs et la sélection', () => {
+    const w = makeWorld({ selected: BlockId.SilverOre });
+    for (let id = BlockId.DiamondOre; id <= BlockId.SilverOre; id++) w.blocks[1000 + id] = id;
+    const v = validateSavedWorld(w);
+    expect(v).not.toBeNull();
+    expect(v!.selected).toBe(BlockId.SilverOre);
+    expect(Array.from(v!.blocks.subarray(1000 + BlockId.DiamondOre, 1000 + BlockId.SilverOre + 1))).toEqual([
+      23, 24, 25, 26, 27, 28, 29,
+    ]);
+  });
+});
+
+describe('compatibilité : sauvegarde d’avant les minerais', () => {
+  /** Monde tel que l’écrivait la version précédente : ids 0 à 22, Diamond = 11 et Gold = 12. */
+  function legacyWorld(): SavedWorld {
+    const w = makeWorld({ selected: 11 });
+    for (let i = 0; i < 23; i++) w.blocks[5000 + i] = i;
+    return w;
+  }
+
+  it('se recharge depuis IndexedDB et dans le monde, blocs identiques (11 = diamant, 12 = or)', async () => {
+    const store = freshIdb();
+    const legacy = legacyWorld();
+    await store.putRaw(structuredClone(legacy)); // écriture brute, comme l’ancienne version
+    const loaded = await store.load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.blocks).toEqual(legacy.blocks);
+    expect(loaded!.selected).toBe(BlockId.Diamond);
+    const world = new World();
+    world.load(loaded!.blocks);
+    expect(world.serialize()).toEqual(legacy.blocks);
+    const at = (i: number) => {
+      const idx = 5000 + i;
+      const x = idx % world.sizeX;
+      const z = Math.floor(idx / world.sizeX) % world.sizeZ;
+      const y = Math.floor(idx / (world.sizeX * world.sizeZ));
+      return world.getBlock(x, y, z);
+    };
+    expect(at(11)).toBe(BlockId.Diamond);
+    expect(at(12)).toBe(BlockId.Gold);
+    expect(at(22)).toBe(BlockId.Bedrock);
   });
 });
 
