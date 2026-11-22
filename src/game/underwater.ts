@@ -3,8 +3,8 @@ import * as THREE from 'three';
 /** Couleur du voile sous l'eau (brouillard + fond). */
 const UNDERWATER_COLOR = 0x2f7fd0;
 /** Brouillard sous l'eau : on voit encore autour de soi (pas angoissant), le lointain se fond. */
-const UNDERWATER_FOG_NEAR = 2;
-const UNDERWATER_FOG_FAR = 26;
+const UNDERWATER_FOG_NEAR = 0;
+const UNDERWATER_FOG_FAR = 18;
 
 /**
  * Léger voile bleu quand la tête est sous l'eau : couleur et distance du brouillard, couleur du

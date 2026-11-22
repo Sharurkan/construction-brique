@@ -12,7 +12,7 @@ const SIDE_DARKEN = [0.18, 0.34];
  * semi-transparente dans le matériau eau. La vignette fait pareil : teinte multipliée
  * (même couleur que `uTint` du matériau) et cube dessiné avec une opacité partielle.
  */
-const WATER_TINT = 'rgb(128,189,255)';
+const WATER_TINT = 'rgb(92,158,255)';
 const WATER_ICON_ALPHA = 0.78;
 
 function shadedTile(tile: HTMLCanvasElement, darken: number, tint?: string): HTMLCanvasElement {

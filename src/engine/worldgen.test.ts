@@ -152,6 +152,11 @@ describe('generateWorld : lac et cascade', () => {
       const hit = w.raycast(eye, dir, 80);
       expect(hit).not.toBeNull();
       expect(hit!.id).toBe(BlockId.Water);
+      // La surface du lac aussi (point au milieu du lac, côté point d'apparition).
+      const lakeTarget = { x: l.x + 0.5, y: WATER_LEVEL + 0.9, z: l.z + 0.5 };
+      const d2 = { x: lakeTarget.x - eye.x, y: lakeTarget.y - eye.y, z: lakeTarget.z - eye.z };
+      const hit2 = w.raycast(eye, d2, 80);
+      expect(hit2?.id).toBe(BlockId.Water);
     }
   });
 });

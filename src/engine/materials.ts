@@ -374,7 +374,7 @@ export function createChunkMaterials(atlas: TextureAtlas): ChunkMaterials {
       ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
       uTime: { value: 0 },
       uOpacity: { value: 0.72 },
-      uTint: { value: new THREE.Color(0.5, 0.74, 1.0) },
+      uTint: { value: new THREE.Color(0.36, 0.62, 1.0) },
     },
     fog: true,
     transparent: true,

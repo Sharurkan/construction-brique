@@ -146,7 +146,9 @@ export function generateWorld(world: World, seed: number): void {
       const t = ((x - cx) * ux + (z - cz) * uz) / segLen;
       const lat = Math.abs((x - cx) * uz - (z - cz) * ux);
       if (t > 0 && t < 1.2 && lat < 14) {
-        h = Math.min(h, mid + (WATER_LEVEL + 1 - mid) * Math.min(1, t) + lat * 0.45);
+        // Descend vite (dès ~10 blocs du centre on est presque au niveau de la plage) : depuis
+        // le point d'apparition, le regard passe au-dessus du sol jusqu'à la surface du lac.
+        h = Math.min(h, mid + (WATER_LEVEL + 1 - mid) * Math.min(1, t / 0.45) + lat * 0.45);
       }
       // Cuvette du lac : fond de 1 à 3 blocs d'eau, plage au ras de l'eau, puis pente douce.
       const e = lakeDist(lake, x, z);
