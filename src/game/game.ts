@@ -36,6 +36,8 @@ const DEFAULT_MAX_PIXEL_RATIO = 1.25;
 const FOG_NEAR = 32;
 const FOG_FAR = 90;
 const CAMERA_FAR = 120;
+/** Hauteur max des pieds au-dessus du haut du monde. */
+const FLY_CEILING_MARGIN = 8;
 /** Chunks remaillés par frame : normal / juste après une action du joueur (réponse immédiate). */
 const REMESH_PER_FRAME = 2;
 const REMESH_AFTER_ACTION = 8;
@@ -126,6 +128,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
   const player = new Player(spawn);
   player.setSpawn(spawn);
   player.setBounds({ minX: 0, maxX: world.sizeX, minZ: 0, maxZ: world.sizeZ });
+  // Plafond de vol : un peu au-dessus du monde (au-delà, on ne voit plus que le ciel).
+  player.setVerticalBounds({ maxY: world.sizeY + FLY_CEILING_MARGIN });
   if (restored) {
     player.teleport(restored.player.position);
     player.state.yaw = restored.player.yaw;

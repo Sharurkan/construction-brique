@@ -29,6 +29,7 @@ export interface Vec3 { x: number; y: number; z: number }
 export type PlayerInput = InputState & { descend?: boolean };
 
 export interface HorizontalBounds { minX: number; maxX: number; minZ: number; maxZ: number }
+export interface VerticalBounds { maxY: number }
 
 /** Vrai si le bloc [x,x+1)×[y,y+1)×[z,z+1) chevauche l'AABB d'un joueur dont les pieds sont en `feet`. */
 export function blockIntersectsPlayer(feet: Vec3, x: number, y: number, z: number): boolean {
@@ -48,6 +49,7 @@ export class Player {
   autoJump = true;
   private spawn: Vec3;
   private bounds: HorizontalBounds | null = null;
+  private maxY = Infinity;
 
   constructor(spawn: Vec3 = { x: 0, y: 0, z: 0 }, yaw = 0, pitch = 0) {
     this.spawn = { ...spawn };
@@ -59,13 +61,17 @@ export class Player {
     this.spawn = { ...p };
   }
 
-  getSpawn(): Vec3 {
-    return { ...this.spawn };
-  }
-
   /** Limites horizontales optionnelles (murs invisibles) : hors de ces limites, tout est solide. */
   setBounds(b: HorizontalBounds | null): void {
     this.bounds = b ? { ...b } : null;
+  }
+
+  /**
+   * Plafond optionnel : hauteur max des PIEDS (ex. `world.sizeY + 8`), en vol comme au saut.
+   * Évite de monter si haut qu'on ne voit plus que le ciel.
+   */
+  setVerticalBounds(b: VerticalBounds | null): void {
+    this.maxY = b ? b.maxY : Infinity;
   }
 
   /** Téléporte (pieds) et remet la vitesse à zéro. */
@@ -182,6 +188,11 @@ export class Player {
       this.velocity.y = 0;
     } else if (vy !== 0) {
       this.onGround = false;
+    }
+    if (this.state.position.y > this.maxY) {
+      // Plafond : on reste dessous (vitesse montante annulée).
+      this.state.position.y = this.maxY;
+      if (this.velocity.y > 0) this.velocity.y = 0;
     }
     if (!blockedY && vy === 0 && !this.flying) {
       // Vitesse nulle exactement (rare) : vérifier s'il y a un sol sous les pieds.

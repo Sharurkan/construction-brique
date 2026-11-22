@@ -236,3 +236,38 @@ describe('Player – regard et utilitaires', () => {
     expect(blockIntersectsPlayer({ x: 0.9, y: 1, z: 0.5 }, 1, 1, 0)).toBe(true);
   });
 });
+
+describe('Player – plafond de vol', () => {
+  it('ne monte pas au-dessus de maxY (monde 48 → 56), puis redescend normalement', () => {
+    const w = flat();
+    const p = new Player({ x: 0.5, y: 1, z: 0.5 });
+    p.setVerticalBounds({ maxY: 48 + 8 });
+    p.toggleFly();
+    run(p, w, 20, input({ jump: true })); // 6 blocs/s × 20 s = 120 blocs demandés
+    expect(p.state.position.y).toBe(56);
+    expect(p.velocity.y).toBeLessThanOrEqual(0);
+    run(p, w, 1, input({ descend: true }));
+    expect(p.state.position.y).toBeLessThan(56);
+  });
+
+  it('une position restaurée au-dessus du plafond est ramenée dessous', () => {
+    const w = flat();
+    const p = new Player({ x: 0.5, y: 65, z: 0.5 });
+    p.setVerticalBounds({ maxY: 56 });
+    p.toggleFly();
+    run(p, w, 0.1, input());
+    expect(p.state.position.y).toBe(56);
+  });
+
+  it('sans bornes verticales : pas de limite', () => {
+    const w = flat();
+    const p = new Player({ x: 0.5, y: 1, z: 0.5 });
+    p.toggleFly();
+    run(p, w, 20, input({ jump: true }));
+    expect(p.state.position.y).toBeGreaterThan(100);
+    p.setVerticalBounds({ maxY: 10 });
+    p.setVerticalBounds(null);
+    run(p, w, 1, input({ jump: true }));
+    expect(p.state.position.y).toBeGreaterThan(100);
+  });
+});
