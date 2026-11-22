@@ -1,23 +1,24 @@
 # Crédits
 
-Merci aux créateurs qui partagent leur travail librement. Tous les fichiers
-ci-dessous sont dans `public/assets/` (les fichiers ont été renommés, leur
-contenu n'a pas été modifié). Le nom d'origine de chaque fichier est indiqué
-dans les tableaux ci-dessous.
+Ce jeu est fait uniquement avec des éléments libres. Merci aux créateurs qui
+partagent leur travail ! Les images, sons et la police sont dans le dossier
+`assets/` du jeu. Les fichiers ont été renommés, mais leur contenu n'a pas été
+modifié. Le nom d'origine de chaque fichier est indiqué ci-dessous
+(« fichier du jeu ← fichier d'origine »).
 
 ## Graphismes et sons : Kenney (CC0)
 
 Auteur : **Kenney Vleugels — Kenney** (https://www.kenney.nl)
 Licence : **Creative Commons Zero (CC0 1.0), domaine public** —
 https://creativecommons.org/publicdomain/zero/1.0/
-La mention de l'auteur n'est pas obligatoire, mais nous la faisons avec plaisir.
+Citer l'auteur n'est pas obligatoire, mais nous le faisons avec plaisir.
 (Licence vérifiée dans le fichier `License.txt` de chaque archive officielle.)
 
 ### Voxel Pack — textures des blocs et pioche
 
 Source : https://kenney.nl/assets/voxel-pack
 
-Dossier `textures/` (PNG 128 × 128, depuis `PNG/Tiles/`) :
+Dossier `textures/` (images de 128 × 128 pixels, depuis `PNG/Tiles/`) :
 
 | Fichier du jeu | Fichier Kenney |
 | --- | --- |
@@ -42,46 +43,36 @@ Dossier `textures/` (PNG 128 × 128, depuis `PNG/Tiles/`) :
 | ore_silver.png | stone_silver.png |
 | wool.png | cotton_tan.png |
 | bedrock.png | greystone.png |
-| wool_red.png | cotton_red.png |
-| wool_green.png | cotton_green.png |
-| wool_blue.png | cotton_blue.png |
-| stone_brick.png | brick_grey.png |
-| planks_red.png | wood_red.png |
-| snow.png | snow.png |
-| ice.png | ice.png |
 | glass_frame.png | glass_frame.png |
 
-Dossier `icons/` : `btn_break.png` ← `PNG/Items/pick_diamond.png`.
+Dossier `icons/` : btn_break.png ← `PNG/Items/pick_diamond.png`.
 
-Dans le jeu, les tuiles sont réduites à 64 × 64 et la tuile `wool.png`
-(cotton_tan) est recolorée en 9 couleurs de laine vives (blanc, rouge, orange,
-jaune, vert, bleu, violet, rose, noir).
+Pendant le jeu, les textures sont réduites à 64 × 64 pixels. La texture
+`wool.png` (cotton_tan) est recolorée en 9 couleurs de laine vives (blanc,
+rouge, orange, jaune, vert, bleu, violet, rose, noir).
 
 Blocs pleins d'or et de diamant : le Voxel Pack n'en contient pas. Ils sont
-obtenus en **recolorant** la tuile Kenney `glass_frame.png` (cadre biseauté) au
-chargement du jeu, en jaune or et en bleu diamant opaques (transformation de
-couleur seule, rien n'est dessiné en plus ; voir `recolorGem` dans
-`src/game/atlas.ts` et `GEM_BLOCK_TILES` dans `src/assets/manifest.ts`). Œuvre
-dérivée d'une tuile CC0, donc CC0 également. Le fichier `glass_frame.png` est
-livré tel quel. Les vignettes de la palette sont de
-petits cubes dessinés avec ces mêmes tuiles.
+obtenus en **recolorant** la texture `glass_frame.png` (cadre biseauté) au
+chargement du jeu, en jaune or et en bleu diamant (simple changement de
+couleur, rien n'est dessiné en plus). C'est une œuvre dérivée d'un fichier
+CC0, donc CC0 elle aussi. Le fichier `glass_frame.png` est livré tel quel.
 
-Icône de l'application (`public/icons/*.png`, `public/favicon.png`) : cube
-isométrique dessiné avec `grass_top.png` et `dirt_grass.png` (grass_side) du
-Voxel Pack, sur fond bleu ciel (œuvre dérivée, CC0 également ; générée par
-`src/platform/tools/make-icons.mjs`).
+Les petits cubes de la palette sont dessinés avec ces mêmes textures.
+
+Icône de l'application (`icons/icon-*.png`, `icons/apple-touch-icon-180.png`,
+`favicon.png`) : un cube dessiné avec `grass_top.png` et `grass_side.png` du
+Voxel Pack, sur fond bleu ciel (œuvre dérivée, CC0 elle aussi).
 
 ### Mobile Controls — joystick et icônes de boutons
 
 Source : https://kenney.nl/assets/mobile-controls
 
-Dossier `icons/` (SVG, depuis `Vector/`) :
+Dossier `icons/` (dessins SVG, depuis `Vector/`) :
 
 | Fichier du jeu | Fichier Kenney |
 | --- | --- |
 | joystick_base.svg | Style H/joystick_circle_pad_a.svg |
 | joystick_knob.svg | Style H/joystick_circle_nub_a.svg |
-| btn_bg.svg | Style H/button_circle.svg |
 | btn_place.svg | Icons/icon_hand.svg |
 | btn_jump.svg | Icons/icon_jump.svg |
 | btn_fullscreen.svg | Icons/icon_size_larger.svg |
@@ -89,11 +80,11 @@ Dossier `icons/` (SVG, depuis `Vector/`) :
 | btn_sound_on.svg | Icons/icon_sound.svg |
 | btn_sound_off.svg | Icons/icon_sound_disabled.svg |
 
-### Game Icons — icônes complémentaires
+### Game Icons — autres icônes
 
 Source : https://kenney.nl/assets/game-icons
 
-Dossier `icons/` (PNG 100 × 100, depuis `PNG/White/2x/`) :
+Dossier `icons/` (images de 100 × 100 pixels, depuis `PNG/White/2x/`) :
 
 | Fichier du jeu | Fichier Kenney |
 | --- | --- |
@@ -106,7 +97,7 @@ Dossier `icons/` (PNG 100 × 100, depuis `PNG/White/2x/`) :
 
 Source : https://kenney.nl/assets/impact-sounds
 
-Dossier `sounds/` (OGG, depuis `Audio/`) :
+Dossier `sounds/` (sons OGG, depuis `Audio/`) :
 
 | Fichier du jeu | Fichier Kenney |
 | --- | --- |
@@ -123,6 +114,8 @@ Dossier `sounds/` (OGG, depuis `Audio/`) :
 
 Source : https://kenney.nl/assets/interface-sounds
 
+Dossier `sounds/` :
+
 | Fichier du jeu | Fichier Kenney |
 | --- | --- |
 | jump_1.ogg | maximize_001.ogg |
@@ -132,13 +125,17 @@ Source : https://kenney.nl/assets/interface-sounds
 
 Source : https://kenney.nl/assets/ui-audio
 
+Dossier `sounds/` :
+
 | Fichier du jeu | Fichier Kenney |
 | --- | --- |
 | click_1.ogg | click1.ogg |
 
-### Music Jingles — jingle « nouveau monde »
+### Music Jingles — musique « nouveau monde »
 
 Source : https://kenney.nl/assets/music-jingles
+
+Dossier `sounds/` :
 
 | Fichier du jeu | Fichier Kenney |
 | --- | --- |
@@ -146,19 +143,34 @@ Source : https://kenney.nl/assets/music-jingles
 
 ## Police : Andika (SIL)
 
-- Fichiers : `fonts/Andika-Regular.woff2`, `fonts/Andika-Bold.woff2`
-  (version 7.000, dossier `web/` de la publication officielle) et `fonts/OFL.txt`.
+- Fichiers : `fonts/Andika-Regular.woff2` et `fonts/Andika-Bold.woff2`
+  (version 7.000, dossier `web/` de la publication officielle).
 - Source : https://github.com/silnrsi/font-andika/releases (Andika-7.000.zip)
   — page du projet : https://software.sil.org/andika/
 - Copyright (c) 2004-2025 SIL Global (https://www.sil.org/), avec les noms de
   police réservés « Andika » et « SIL ».
 - Licence : **SIL Open Font License 1.1** — texte complet dans
-  `public/assets/fonts/OFL.txt` et sur https://openfontlicense.org
-- Nom réservé : la police est utilisée telle quelle. Une version modifiée
-  (par exemple un sous-ensemble de caractères) ne pourrait pas s'appeler
-  « Andika » ni « SIL ».
+  `assets/fonts/OFL.txt` et sur https://openfontlicense.org
+- La police est utilisée telle quelle. Une version modifiée (par exemple avec
+  moins de caractères) n'aurait pas le droit de s'appeler « Andika » ni « SIL ».
 
-## Code : Three.js
+## Bibliothèques (code)
 
-- Moteur 3D **Three.js** — https://threejs.org — © 2010-2025 three.js authors.
-- Licence : **MIT** — https://github.com/mrdoob/three.js/blob/dev/LICENSE
+Le jeu contient le code de ces bibliothèques libres. Le texte complet de
+chaque licence est livré avec le jeu, dans le dossier `licenses/`.
+
+- **Three.js** (moteur 3D, version 0.187) — https://threejs.org
+  Auteur : © 2010-2026 three.js authors.
+  Licence : **MIT** — texte : `licenses/three-LICENSE.txt`
+- **Workbox** (fonctionnement hors ligne : `sw.js`, `workbox-*.js`,
+  workbox-window, version 7.4) — https://developer.chrome.com/docs/workbox
+  Auteur : © 2018 Google LLC.
+  Licence : **MIT** — texte : `licenses/workbox-LICENSE.txt`
+- **vite-plugin-pwa** (installation de l'application, version 2.0) —
+  https://vite-pwa-org.netlify.app
+  Auteur : © 2020 Anthony Fu.
+  Licence : **MIT** — texte : `licenses/vite-plugin-pwa-LICENSE.txt`
+- **Vite** (outil de construction du jeu, dont un petit morceau de code est
+  inclus, version 8.3) — https://vite.dev
+  Auteur : © 2019 VoidZero Inc. et les contributeurs de Vite.
+  Licence : **MIT** — texte : `licenses/vite-LICENSE.txt`
