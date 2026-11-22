@@ -437,6 +437,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
       p,
     );
     boostRemesh = false;
+    // Étincelles des blocs précieux : horloge du matériau gemme.
+    worldRenderer.setTime(now / 1000);
 
     if (!contextLost) renderer.render(scene, camera);
     debugOverlay?.frame();

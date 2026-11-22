@@ -155,6 +155,89 @@ describe('meshChunk (greedy)', () => {
     expect(minShade).toBeLessThan(255 * 0.55);
   });
 
+  it('blocs précieux pleins : passe gemme à part, minerais dans la passe opaque', () => {
+    const w = new World();
+    w.setBlock(18, 20, 20, BlockId.Diamond);
+    w.setBlock(20, 20, 20, BlockId.Gold);
+    w.setBlock(22, 20, 20, BlockId.EmeraldBlock);
+    w.setBlock(24, 20, 20, BlockId.DiamondOre);
+    w.setBlock(26, 20, 20, BlockId.EmeraldOre);
+    const m = meshChunk(w, 1, 1, 1, atlas);
+    expect(m.gem.quadCount).toBe(18);
+    expect(m.opaque.quadCount).toBe(12); // les deux minerais
+    expect(m.transparent.quadCount).toBe(0);
+    const gemTiles = new Set(Array.from(m.gem.tiles));
+    expect(gemTiles).toEqual(
+      new Set(['diamond_block', 'gold_block', 'emerald_block'].map((k) => atlas.tileIndex(k))),
+    );
+    const opaqueTiles = new Set(Array.from(m.opaque.tiles));
+    expect(opaqueTiles).toEqual(new Set(['ore_diamond', 'ore_emerald'].map((k) => atlas.tileIndex(k))));
+    // L'orientation de face est fournie (attribut `face` du matériau gemme).
+    expect(m.gem.faces.length).toBe(m.gem.vertexCount);
+    expect(m.gem.cutoutIndexCount).toBe(0);
+  });
+
+  it('gemme contre opaque : faces de contact cachées des deux côtés, AO partagée', () => {
+    const w = new World();
+    w.setBlock(20, 20, 20, BlockId.Gold);
+    w.setBlock(21, 20, 20, BlockId.Stone);
+    w.setBlock(20, 19, 20, BlockId.Grass);
+    const m = meshChunk(w, 1, 1, 1, atlas);
+    // Or : ni face +X (pierre) ni face −Y (herbe).
+    expect(facesOf(m.gem)).toEqual([1, 2, 4, 5]);
+    // Pierre : pas de face −X (or). Herbe : pas de face +Y (or).
+    let stoneFaces = 0;
+    let grassTop = 0;
+    for (let q = 0; q < m.opaque.quadCount; q++) {
+      const t = m.opaque.tiles[q * 4];
+      const f = m.opaque.faces[q * 4];
+      if (t === atlas.tileIndex('stone')) {
+        stoneFaces++;
+        expect(f).not.toBe(1);
+      }
+      if (t === atlas.tileIndex('grass_top')) grassTop++;
+    }
+    expect(stoneFaces).toBe(5);
+    expect(grassTop).toBe(0);
+    // Une gemme posée en hauteur à côté assombrit (AO) le dessus de la pierre, comme un bloc opaque.
+    const w2 = new World();
+    w2.setBlock(20, 20, 20, BlockId.Stone);
+    const before = meshChunk(w2, 1, 1, 1, atlas);
+    const topShade = (md: MeshData) => {
+      const i = md.faces.indexOf(2);
+      return Math.min(...Array.from(md.shades.subarray(i, i + 4)));
+    };
+    expect(topShade(before.opaque)).toBe(255);
+    w2.setBlock(21, 21, 20, BlockId.EmeraldBlock);
+    const after = meshChunk(w2, 1, 1, 1, atlas);
+    expect(topShade(after.opaque)).toBeLessThan(255);
+  });
+
+  it('pas de face entre deux gemmes adjacentes (même matière ou non), fusion des mêmes gemmes', () => {
+    const w = new World();
+    // Mur 3×2 de diamant : fusion greedy → 6 quads, aire 2·6 + 2·2 + 2·3 = 22.
+    for (let x = 18; x < 21; x++) for (let y = 20; y < 22; y++) w.setBlock(x, y, 20, BlockId.Diamond);
+    let m = meshChunk(w, 1, 1, 1, atlas);
+    expect(m.gem.quadCount).toBe(6);
+    expect(area(m.gem)).toBeCloseTo(22);
+    // Or collé à émeraude : la face commune n'est pas dessinée.
+    const w2 = new World();
+    w2.setBlock(20, 20, 20, BlockId.Gold);
+    w2.setBlock(21, 20, 20, BlockId.EmeraldBlock);
+    m = meshChunk(w2, 1, 1, 1, atlas);
+    expect(area(m.gem)).toBeCloseTo(10);
+    expect(m.opaque.quadCount).toBe(0);
+  });
+
+  it('gemme derrière du verre : visible à travers, le verre garde sa face', () => {
+    const w = new World();
+    w.setBlock(20, 20, 20, BlockId.Diamond);
+    w.setBlock(21, 20, 20, BlockId.Glass);
+    const m = meshChunk(w, 1, 1, 1, atlas);
+    expect(m.gem.quadCount).toBe(6);
+    expect(m.transparent.quadCount).toBe(5);
+  });
+
   it('maillage du monde généré : cohérent et rapide', () => {
     const w = new World();
     generateWorld(w, 42);
@@ -168,7 +251,7 @@ describe('meshChunk (greedy)', () => {
           const m = meshChunk(w, cx, cy, cz, atlas);
           worst = Math.max(worst, performance.now() - t);
           tris += (m.opaque.indices.length + m.transparent.indices.length) / 3;
-          for (const md of [m.opaque, m.transparent]) {
+          for (const md of [m.opaque, m.transparent, m.gem]) {
             expect(md.positions.length).toBe(md.vertexCount * 3);
             for (let i = 0; i < md.indices.length; i++) expect(md.indices[i]).toBeLessThan(md.vertexCount);
           }

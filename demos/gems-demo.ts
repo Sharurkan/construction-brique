@@ -97,7 +97,7 @@ function fillTerrain(w: World): void {
 }
 
 /** Gemmes d'une colonne, en x local (mur à x0..x0+2, bloc isolé à x0+4). */
-const GEM_IDS = [BlockId.Diamond, BlockId.Gold, BlockId.WoolGreen /* tient lieu d'émeraude */];
+const GEM_IDS = [BlockId.Diamond, BlockId.Gold, BlockId.EmeraldBlock];
 function placeGems(w: World, x0: number): void {
   for (let r = 0; r < 3; r++) {
     const z = ROW_Z[r];
@@ -213,14 +213,15 @@ async function main(): Promise<void> {
       tileIndex(key) {
         if (key === 'diamond_block') return gemAtlas.tileIndex(`${opt.base}_diamond`);
         if (key === 'gold_block') return gemAtlas.tileIndex(`${opt.base}_gold`);
-        if (key === 'wool_green') return gemAtlas.tileIndex(`${opt.base}_emerald`);
+        if (key === 'emerald_block') return gemAtlas.tileIndex(`${opt.base}_emerald`);
         return 0; // terrain : filtré
       },
     };
     const w = new World(16, 16, 16);
     fillTerrain(w);
     placeGems(w, 4);
-    const geo = gemGeometry(meshChunk(w, 0, 0, 0, lookup).opaque);
+    // Les blocs précieux pleins ont désormais leur propre passe dans le mesher (.gem).
+    const geo = gemGeometry(meshChunk(w, 0, 0, 0, lookup).gem);
     const mat =
       opt.mode === null
         ? chunkMats.opaque

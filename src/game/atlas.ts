@@ -115,7 +115,7 @@ export function tintWool(base: Canvas, color: number, contrast = 1.25): Canvas {
 }
 
 /**
- * Bloc précieux plein (or, diamant) à partir d'une tuile Kenney lisse : transformation de
+ * Bloc précieux plein (or, émeraude, diamant) à partir d'une tuile Kenney lisse : transformation de
  * couleur seule. La couleur cible remplace la teinte ; le relief de la tuile (écart de
  * luminance de chaque pixel à la moyenne, normalisé par l'écart-type pour que les motifs
  * discrets de la glace ressortent) est ajouté par-dessus, en `amplitude` niveaux par écart-type.

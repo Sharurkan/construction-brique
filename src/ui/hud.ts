@@ -49,6 +49,7 @@ export const BLOCK_LABELS_FR: Readonly<Record<BlockId, string>> = {
   [BlockId.CoalOre]: 'Minerai de charbon',
   [BlockId.IronOre]: 'Minerai de fer',
   [BlockId.SilverOre]: "Minerai d'argent",
+  [BlockId.EmeraldBlock]: "Bloc d'émeraude",
 };
 
 export interface HudOptions {

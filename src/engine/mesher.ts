@@ -13,7 +13,7 @@
  * est fourni par sommet.
  */
 import { BlockId, CHUNK_SIZE, type TileKey, type VoxelWorld } from '../core/types';
-import { BLOCKS, BLOCK_COUNT, isCutout } from './blocks';
+import { BLOCKS, BLOCK_COUNT, isCutout, isGem } from './blocks';
 import { World } from './world';
 
 /** Sous-ensemble de TextureAtlas utile au mesher (permet des tests sans Three/DOM). */
@@ -45,6 +45,11 @@ export interface MeshData {
 export interface ChunkMesh {
   opaque: MeshData;
   transparent: MeshData;
+  /**
+   * Blocs précieux pleins (isGem) : opaques (ils cachent leurs voisins comme la pierre) mais
+   * maillés à part pour le matériau « gemme ». Vide (quadCount = 0) dans la plupart des chunks.
+   */
+  gem: MeshData;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,13 +64,13 @@ const STRIDE = [1, P, P * P]; // pas par axe x, y, z dans le volume rembourré
 const OPAQUE = new Uint8Array(BLOCK_COUNT);
 /** 1 si le bloc est rendu dans la passe transparente. */
 const TRANS = new Uint8Array(BLOCK_COUNT);
-/** Passe : 0 opaque, 1 découpée (cutout), 2 mélangée (blend). */
+/** Passe : 0 opaque, 1 découpée (cutout), 2 mélangée (blend), 3 gemme (opaque, matériau à part). */
 const PASS = new Uint8Array(BLOCK_COUNT);
 for (let id = 1; id < BLOCK_COUNT; id++) {
   const def = BLOCKS[id as BlockId];
   OPAQUE[id] = def.transparent ? 0 : 1;
   TRANS[id] = def.transparent ? 1 : 0;
-  PASS[id] = def.transparent ? (isCutout(id) ? 1 : 2) : 0;
+  PASS[id] = def.transparent ? (isCutout(id) ? 1 : 2) : isGem(id) ? 3 : 0;
 }
 
 /**
@@ -136,7 +141,7 @@ function grow<T extends Float32Array | Uint16Array | Uint8Array | Uint32Array>(a
   return b;
 }
 
-const builders = [new Builder(), new Builder(), new Builder()]; // opaque, cutout, blend
+const builders = [new Builder(), new Builder(), new Builder(), new Builder()]; // opaque, cutout, blend, gemme
 
 // Scratch pour un quad (évite les allocations par face).
 const qx = new Float32Array(4);
@@ -308,7 +313,7 @@ function finishMerged(b: Builder, b2: Builder | null): MeshData {
  */
 export function meshChunk(world: VoxelWorld, cx: number, cy: number, cz: number, atlas: TileLookup): ChunkMesh {
   for (const b of builders) b.reset();
-  const [bo, bc, bb] = builders;
+  const [bo, bc, bb, bg] = builders;
   if (fillPadded(world, cx * S, cy * S, cz * S)) {
     const tt = tileTable(atlas);
     const c = [0, 0, 0];
@@ -373,7 +378,7 @@ export function meshChunk(world: VoxelWorld, cx: number, cy: number, cz: number,
               h++;
             }
             const pass = key >>> 24;
-            const target = pass === 0 ? bo : pass === 1 ? bc : bb;
+            const target = pass === 0 ? bo : pass === 1 ? bc : pass === 2 ? bb : bg;
             emitQuad(target, f, d, u, plane, iu, iv, w, h, (key & 0xffff) - 1, (key >>> 16) & 0xff);
             for (let hh = 0; hh < h; hh++) mask.fill(0, i + hh * S, i + hh * S + w);
             iu += w;
@@ -382,5 +387,5 @@ export function meshChunk(world: VoxelWorld, cx: number, cy: number, cz: number,
       }
     }
   }
-  return { opaque: finish(bo), transparent: finishMerged(bc, bb) };
+  return { opaque: finish(bo), transparent: finishMerged(bc, bb), gem: finish(bg) };
 }

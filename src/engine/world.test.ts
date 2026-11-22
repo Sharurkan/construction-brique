@@ -34,7 +34,9 @@ describe('blocs', () => {
       BlockId.IronOre,
       BlockId.SilverOre,
     ]).toEqual([23, 24, 25, 26, 27, 28, 29]);
-    expect(BLOCK_COUNT).toBe(30);
+    // Bloc plein d'émeraude : ajouté APRÈS les minerais.
+    expect(BlockId.EmeraldBlock).toBe(30);
+    expect(BLOCK_COUNT).toBe(31);
   });
 
   it('minerais et blocs pleins : dans la palette, opaques, solides, cassables, tuiles distinctes', () => {
@@ -48,6 +50,7 @@ describe('blocs', () => {
       [BlockId.SilverOre, 'ore_silver'],
       [BlockId.Diamond, 'diamond_block'],
       [BlockId.Gold, 'gold_block'],
+      [BlockId.EmeraldBlock, 'emerald_block'],
     ];
     for (const [id, tile] of ores) {
       const b = BLOCKS[id];
@@ -59,8 +62,8 @@ describe('blocs', () => {
       expect(PALETTE).toContain(id);
       expect(isValidBlockId(id)).toBe(true);
     }
-    // Les blocs pleins or et diamant terminent la palette.
-    expect(PALETTE.slice(-2)).toEqual([BlockId.Gold, BlockId.Diamond]);
+    // Les blocs pleins or, émeraude et diamant terminent la palette.
+    expect(PALETTE.slice(-3)).toEqual([BlockId.Gold, BlockId.EmeraldBlock, BlockId.Diamond]);
     expect(isValidBlockId(BLOCK_COUNT)).toBe(false);
   });
 });

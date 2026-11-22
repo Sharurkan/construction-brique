@@ -88,6 +88,26 @@ describe('validateSavedWorld', () => {
   });
 });
 
+describe('bloc d’émeraude (id 30)', () => {
+  it('accepté dans les blocs et comme bloc choisi', () => {
+    const w = makeWorld({ selected: BlockId.EmeraldBlock });
+    w.blocks[2000] = BlockId.EmeraldBlock;
+    const v = validateSavedWorld(w);
+    expect(v).not.toBeNull();
+    expect(v!.selected).toBe(30);
+    expect(v!.blocks[2000]).toBe(30);
+  });
+
+  it('une sauvegarde d’avant l’émeraude (ids 0 à 29) reste valide et identique', () => {
+    const w = makeWorld({ selected: BlockId.SilverOre });
+    for (let i = 0; i < 30; i++) w.blocks[3000 + i] = i;
+    const v = validateSavedWorld(structuredClone(w));
+    expect(v).not.toBeNull();
+    expect(v!.blocks).toEqual(w.blocks);
+    expect(v!.selected).toBe(BlockId.SilverOre);
+  });
+});
+
 describe('compatibilité : sauvegarde d’avant les minerais', () => {
   /** Monde tel que l’écrivait la version précédente : ids 0 à 22, Diamond = 11 et Gold = 12. */
   function legacyWorld(): SavedWorld {

@@ -31,7 +31,7 @@ export class DebugOverlay {
     this.el.textContent =
       `fps        ${fps.toFixed(0)}\n` +
       `triangles  ${r.triangles} / ${s.triangles}\n` +
-      `draw calls ${r.calls} (meshes ${s.meshes})\n` +
+      `draw calls ${r.calls} (meshes ${s.meshes} · gemmes ${s.gemMeshes})\n` +
       `chunk      ${s.avgChunkMs.toFixed(2)} ms · attente ${s.pending}\n` +
       `pixelRatio ${this.renderer.getPixelRatio().toFixed(2)}` +
       this.extra();

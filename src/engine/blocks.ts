@@ -61,12 +61,15 @@ export const BLOCKS: Record<BlockId, BlockDef> = {
   [BlockId.CoalOre]: def(BlockId.CoalOre, all('ore_coal'), 0x4a4a4e),
   [BlockId.IronOre]: def(BlockId.IronOre, all('ore_iron'), 0x3cb8a0),
   [BlockId.SilverOre]: def(BlockId.SilverOre, all('ore_silver'), 0xc8dce0),
+  // Bloc PLEIN ajouté après les minerais (ids figés) : tuile recolorée comme or et diamant.
+  [BlockId.EmeraldBlock]: def(BlockId.EmeraldBlock, all('emerald_block'), 0x14e07c),
 };
 
 /**
  * Ordre de la palette : nature d'abord (ce qu'on voit autour de soi), puis construction,
  * puis les laines dans l'ordre de l'arc-en-ciel, puis les minerais (du plus commun au plus
- * précieux) et les « trésors » à la fin : blocs pleins d'or et de diamant.
+ * précieux) et les « trésors » à la fin : blocs pleins d'or, d'émeraude et de diamant
+ * (du jaune au bleu en passant par le vert : dégradé agréable en bout de palette).
  */
 export const PALETTE: BlockId[] = [
   BlockId.Grass,
@@ -96,6 +99,7 @@ export const PALETTE: BlockId[] = [
   BlockId.EmeraldOre,
   BlockId.DiamondOre,
   BlockId.Gold,
+  BlockId.EmeraldBlock,
   BlockId.Diamond,
 ];
 
@@ -119,6 +123,15 @@ export const ALL_TILE_KEYS: TileKey[] = (() => {
  */
 export function isCutout(id: BlockId): boolean {
   return id === BlockId.Leaves;
+}
+
+/**
+ * Blocs précieux PLEINS (diamant, or, émeraude) : opaques, mais dessinés dans une passe à part
+ * avec le matériau « gemme » (reflet + étincelles, voir materials.ts). Les minerais n'en font
+ * pas partie (pierre avec éclats : matériau opaque normal).
+ */
+export function isGem(id: BlockId): boolean {
+  return id === BlockId.Diamond || id === BlockId.Gold || id === BlockId.EmeraldBlock;
 }
 
 export function isValidBlockId(id: number): id is BlockId {
