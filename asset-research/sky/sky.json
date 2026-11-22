@@ -1,0 +1,129 @@
+{
+  "sujet": "Ciel : nuages, soleil, montgolfières, arc-en-ciel, oiseaux, dragon",
+  "date": "2026-11-22",
+  "decision": "Style A « Blocs » choisi par l'utilisateur (soleil variante 1) : tout est construit en cubes avec les tuiles Kenney Voxel Pack déjà présentes dans le jeu (laine teintée, planches). Aucun fichier d'image ajouté au jeu ; public/assets/sky/ a été retiré. Les assets 2D ci-dessous ont servi aux styles B « Dessins » et C « Mélange » de la démo comparative (commit a01c40a), puis ont été écartés.",
+  "retenus": [
+    {
+      "nom": "Tuiles laine (cotton_tan → wool.png) et planches (wood.png → planks.png)",
+      "pack": "Voxel Pack",
+      "auteur": "Kenney (www.kenney.nl)",
+      "licence": "CC0 1.0",
+      "url_source": "https://kenney.nl/assets/voxel-pack",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": ["public/assets/textures/wool.png (déjà dans le jeu)", "public/assets/textures/planks.png (déjà dans le jeu)"],
+      "usage": "Tous les éléments du ciel : cubes instanciés, laine teintée par couleur d'instance, nacelles en planches. Formes construites en code (src/game/sky/blocks.ts).",
+      "taille_archive_telechargee": "aucune (déjà présent dans le projet)"
+    }
+  ],
+  "ecartes": [
+    {
+      "nom": "cloud1–cloud4.png (+ sun.png, moon.png non utilisés)",
+      "pack": "Background Elements Remastered",
+      "auteur": "Kenney (www.kenney.nl)",
+      "licence": "CC0 1.0 (License.txt de l'archive lu)",
+      "url_source": "https://kenney.nl/assets/background-elements-redux",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": ["PNG/Default/cloud1.png", "PNG/Default/cloud2.png", "PNG/Default/cloud3.png", "PNG/Default/cloud4.png"],
+      "taille_archive_telechargee": "1 039 383 octets (≈ 1,0 Mo)",
+      "raison": "Utilisé dans les styles B/C de la démo ; non retenu (style A choisi). Le sun.png du pack est un anneau crème pâle qui ressemble à une lune."
+    },
+    {
+      "nom": "sun1.png / sun2.png, cloud.png, wingMan1–5.png",
+      "pack": "Jumper Pack",
+      "auteur": "Kenney Vleugels (www.kenney.nl)",
+      "licence": "CC0 1.0 (License.txt de l'archive lu)",
+      "url_source": "https://kenney.nl/assets/jumper-pack",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": [],
+      "taille_archive_telechargee": "1 548 872 octets (≈ 1,5 Mo)",
+      "raison": "Soleils à visage d'ennemi (sourcils froncés) : pas assez gentils pour des 5–7 ans. Non utilisé."
+    },
+    {
+      "nom": "Shiny Sun (sun_shiny.png)",
+      "pack": "OpenGameArt « Shiny Sun »",
+      "auteur": "SalemF",
+      "licence": "CC0 (page OpenGameArt ; pas de fichier de licence, fichier PNG seul)",
+      "url_source": "https://opengameart.org/content/shiny-sun",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": ["sun_shiny.png (200×200)"],
+      "taille_archive_telechargee": "24 598 octets (PNG seul)",
+      "raison": "Utilisé dans les styles B/C de la démo ; non retenu."
+    },
+    {
+      "nom": "Hot air balloon (HotAirBalloon_0.png), rayures rouges et blanches",
+      "pack": "OpenGameArt « Hot air balloon »",
+      "auteur": "Bert-o-Naught",
+      "licence": "CC0 (page OpenGameArt ; PNG seul)",
+      "url_source": "https://opengameart.org/content/hot-air-balloon",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": ["HotAirBalloon_0.png réduit à 183×256 (+ variante jaune recolorée au chargement)"],
+      "taille_archive_telechargee": "180 908 octets (PNG seul)",
+      "raison": "Utilisé dans le style B de la démo ; non retenu."
+    },
+    {
+      "nom": "HotAirBalloon.png (damier rose et bleu)",
+      "pack": "OpenGameArt « Fall to the earth »",
+      "auteur": "Gamelves.com (Joseph O)",
+      "licence": "CC0 (page OpenGameArt ; l'archive ne contient pas de fichier de licence)",
+      "url_source": "https://opengameart.org/content/fall-to-the-earth",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": ["Fall to the earth/Assets/HotAirBalloon.png réduit à 139×256"],
+      "taille_archive_telechargee": "2 731 145 octets (≈ 2,7 Mo)",
+      "raison": "Utilisé dans le style B de la démo ; non retenu. L'oiseau et les nuages du pack, plus réalistes, ont été écartés d'emblée."
+    },
+    {
+      "nom": "Flying Bird Game Character Sprite Sheets (oiseau rose, 2 images)",
+      "pack": "OpenGameArt « Bevouliin Free Flying Bird Game Character Sprite Sheets »",
+      "auteur": "bevouliin.com",
+      "licence": "CC0 (page OpenGameArt ; l'archive ne contient qu'un texte promotionnel, pas de licence)",
+      "url_source": "https://opengameart.org/content/bevouliin-free-flying-bird-game-character-sprite-sheets",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": ["transparent PNG/fly/frame-1.png", "transparent PNG/fly/frame-2.png (réduits à 192×146)"],
+      "taille_archive_telechargee": "201 858 octets (≈ 0,2 Mo)",
+      "raison": "Utilisé dans les styles B/C de la démo ; non retenu."
+    },
+    {
+      "nom": "Flappy Dragon Sprite Sheets (dragon vert rigolo, 4 images)",
+      "pack": "OpenGameArt « Flappy Dragon Sprite Sheets »",
+      "auteur": "bevouliin.com",
+      "licence": "CC0 (page OpenGameArt ; l'archive ne contient qu'un texte promotionnel)",
+      "url_source": "https://opengameart.org/content/flappy-dragon-sprite-sheets",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": [],
+      "taille_archive_telechargee": "248 104 octets (≈ 0,25 Mo)",
+      "raison": "Dragon CC0 convenable (gentil, sans feu) trouvé pour une version « sprites », mais le style A a été choisi entre-temps : le dragon du jeu est en blocs de laine, inspiré de cette silhouette (grands yeux, petite dent, cornes blanches). La variante orange (« Orange Flying Flappy Dragon ») est double licence OGA-BY/CC0, non téléchargée."
+    },
+    {
+      "nom": "Bird (oiseau animé 3D)",
+      "pack": "OpenGameArt « Bird »",
+      "auteur": "mess110",
+      "licence": "Domaine public (fichier LICENSE de l'archive : « public domain »), CC0 sur la page",
+      "url_source": "https://opengameart.org/content/bird-1",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": [],
+      "taille_archive_telechargee": "137 984 octets",
+      "raison": "Fichier .blend uniquement (pas de glTF) : il faudrait Blender pour le convertir. Aucun modèle 3D CC0 en glTF trouvé pour montgolfière / oiseau / nuage chez Kenney ; d'où le choix « Blocs » pour la 3D."
+    },
+    {
+      "nom": "Modèles 3D non téléchargés",
+      "pack": "OpenGameArt : « Low poly 3D Pigeon » (mujtaba-io, .blend), « Air Ship Bus » (fnadalt, .blend) ; Sketchfab/Unity « Free Hot-Air Balloons » (UNDERPOLY)",
+      "auteur": "divers",
+      "licence": "CC0 pour les deux premiers ; licence Unity Asset Store / Sketchfab (non CC0, clause anti-IA) pour UNDERPOLY",
+      "url_source": "https://opengameart.org/content/low-poly-3d-pigeon-model-rigged-animated-untextured",
+      "url_licence": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "fichiers_utilises": [],
+      "taille_archive_telechargee": "non téléchargé",
+      "raison": "Formats .blend seulement, ou licence non CC0 / hors des sources autorisées."
+    }
+  ],
+  "archives_telechargees": [
+    { "url": "https://kenney.nl/download-link/… (Background Elements Remastered, via le bouton de téléchargement)", "dossier": ".asset-cache/background-elements-remastered/", "octets": 1039383 },
+    { "url": "https://kenney.nl/download-link/… (Jumper Pack)", "dossier": ".asset-cache/jumper-pack/", "octets": 1548872 },
+    { "url": "https://opengameart.org/sites/default/files/flying%20bird%20game%20character%20sprite%20sheets.zip", "dossier": ".asset-cache/bevouliin-flying-bird/", "octets": 201858 },
+    { "url": "https://opengameart.org/sites/default/files/HotAirBalloon_0.png", "dossier": ".asset-cache/oga-hot-air-balloon-bertonaught/", "octets": 180908 },
+    { "url": "https://opengameart.org/sites/default/files/Fall%20to%20the%20earth.zip", "dossier": ".asset-cache/oga-fall-to-the-earth/", "octets": 2731145 },
+    { "url": "https://opengameart.org/sites/default/files/bird.tar.gz", "dossier": ".asset-cache/oga-bird-mess110/", "octets": 137984 },
+    { "url": "https://opengameart.org/sites/default/files/sun_shiny.png", "dossier": ".asset-cache/oga-shiny-sun/", "octets": 24598 },
+    { "url": "https://opengameart.org/sites/default/files/flappy-dragon-sprite-sheets.zip", "dossier": ".asset-cache/bevouliin-flappy-dragon/", "octets": 248104 }
+  ]
+}

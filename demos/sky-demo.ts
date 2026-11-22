@@ -1,63 +1,49 @@
 /**
- * Démo comparative du ciel : nuages, soleil, montgolfières, arc-en-ciel, oiseaux.
- * 3 styles (A Blocs / B Dessins / C Mélange), un seul affiché à la fois.
+ * Démo du ciel « Blocs » (style A, choisi par l'utilisateur) : nuages, soleil, montgolfières,
+ * arc-en-ciel, oiseaux et dragon, construits en cubes avec les tuiles Kenney du jeu.
+ * Utilise le VRAI module du jeu (src/game/sky/sky.ts) ; les boutons « Soleil 1 / 2 / 3 »
+ * comparent les variantes du soleil (1 = celle intégrée au jeu).
  *
- * Ne modifie pas le jeu : le monde est généré par le VRAI moteur (generateWorld + WorldRenderer +
- * atlas Kenney réel), avec le même brouillard (32–90), le même champ de vision (70°) et le même
- * camera.far (120) que src/game/game.ts. Caméra à hauteur des yeux du joueur, au centre du monde.
- *
- * Rendu en 2 passes (solution proposée pour le jeu, voir sky/common.ts) :
- *   1. scène « ciel » (fond + éléments), caméra ciel à l'origine qui copie l'orientation du joueur ;
- *   2. effacement de la profondeur, puis le monde avec son brouillard et son far.
+ * Le monde est généré par le vrai moteur (generateWorld + WorldRenderer + atlas Kenney réel),
+ * avec le même brouillard (32–90), le même champ de vision (70°) et le même camera.far (120) que
+ * src/game/game.ts. Caméra à hauteur des yeux du joueur, au centre du monde.
  */
 import * as THREE from 'three';
 import { World, WorldRenderer, findSpawn, generateWorld } from '../src/engine';
 import { loadBlockTextures } from '../src/game/atlas';
-import type { SkyStyle } from './sky/common';
-import { createStyleA, createStyleB, createStyleC, loadSpriteImages, type GameTiles } from './sky/styles';
+import { BlockSky, DEFAULT_SUN_VARIANT } from '../src/game/sky/sky';
+import { createSoftSun } from './sky/soft-sun';
 
 // Valeurs reprises de src/game/game.ts (non exportées).
-const SKY = 0x7ec8ff;
 const FOG_NEAR = 32;
 const FOG_FAR = 90;
 const CAMERA_FAR = 120;
 const FOV = 70;
 const EYE_HEIGHT = 1.6; // src/player/player.ts
+const SKY = 0x7ec8ff;
 
 const params = new URLSearchParams(location.search);
 
-// ---------- Three.js ----------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.autoClear = false;
-renderer.info.autoReset = false;
+renderer.autoClear = false; // comme dans le jeu quand le ciel est actif
 document.body.prepend(renderer.domElement);
 
-/** Passe 1 : le ciel. Le fond (couleur) efface couleur + profondeur. */
-const skyScene = new THREE.Scene();
-skyScene.background = new THREE.Color(SKY);
-const skyCamera = new THREE.PerspectiveCamera(FOV, 1, 1, 1000);
-
-/** Passe 2 : le monde, exactement comme dans le jeu (sans fond : il est dessiné par la passe 1). */
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(SKY, FOG_NEAR, FOG_FAR);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 0.05, CAMERA_FAR);
 
 function resize(): void {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  renderer.setSize(w, h);
-  camera.aspect = skyCamera.aspect = w / h;
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  skyCamera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
 resize();
 
 // ---------- Regard : glisser pour tourner + rotation lente automatique ----------
 let yaw = Number(params.get('yaw') ?? 0.6);
-let pitch = Number(params.get('pitch') ?? 0.32); // un peu vers le haut : on regarde le ciel
+let pitch = Number(params.get('pitch') ?? 0.32);
 let autoRotate = !params.has('pause');
 const AUTO_SPEED = 0.07; // rad/s : un tour en ~90 s
 let dragging = false;
@@ -73,8 +59,7 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   if (!dragging) return;
   yaw += (e.clientX - lastX) * 0.005;
-  pitch += (e.clientY - lastY) * 0.005;
-  pitch = Math.max(-0.5, Math.min(1.4, pitch));
+  pitch = Math.max(-0.5, Math.min(1.4, pitch + (e.clientY - lastY) * 0.005));
   lastX = e.clientX;
   lastY = e.clientY;
 });
@@ -94,66 +79,84 @@ pauseBtn.addEventListener('click', () => {
 });
 syncPause();
 
-// ---------- Styles ----------
-const STYLE_COLORS: Record<string, string> = { A: '#e0702f', B: '#2f86e1', C: '#2fae5b' };
-const STYLE_NAMES: Record<string, string> = { A: 'Blocs', B: 'Dessins', C: 'Mélange' };
-let styles: SkyStyle[] = [];
-let current: SkyStyle | null = null;
-const buttons = new Map<string, HTMLButtonElement>();
+// ---------- Ciel + variantes du soleil ----------
+let wool: HTMLCanvasElement;
+let planks: HTMLCanvasElement;
+let sky: BlockSky | null = null;
+let sunVariant = 1;
+let skyTime = 0;
+
+const SUNS = [
+  { n: 1, name: 'Soleil 1', text: 'Disque « pixel » en escalier (blocs plats), jaune chaud, halo doux en 2 anneaux fondus dans le bleu. Toujours de face. Intégré au jeu.' },
+  { n: 2, name: 'Soleil 2', text: 'Le même disque + 8 rayons en blocs qui tournent lentement.' },
+  { n: 3, name: 'Soleil 3', text: 'Disque plat lisse (pas en blocs), toujours rond, halo transparent dégradé. +1 draw call.' },
+];
+
+function buildSky(variant: number): void {
+  sky?.dispose();
+  sky = new BlockSky(wool, planks, { sun: variant === 3 ? 0 : (variant as 1 | 2) });
+  if (variant === 3) sky.scene.add(createSoftSun());
+  sky.update(skyTime); // reprend l'animation au même instant
+  sunVariant = variant;
+  for (const b of document.querySelectorAll<HTMLButtonElement>('.sun')) b.classList.toggle('on', Number(b.dataset.n) === variant);
+  renderLegend();
+  const u = new URL(location.href);
+  u.searchParams.set('sun', String(variant));
+  history.replaceState(null, '', u);
+}
 
 function buildButtons(): void {
-  const bar = document.getElementById('styles')!;
-  for (const letter of ['A', 'B', 'C']) {
+  const bar = document.getElementById('suns')!;
+  for (const s of SUNS) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'sbtn';
-    b.innerHTML = `<b style="background:${STYLE_COLORS[letter]}">${letter}</b>${STYLE_NAMES[letter]}`;
-    b.addEventListener('click', () => select(letter));
+    b.className = 'sun';
+    b.dataset.n = String(s.n);
+    b.textContent = s.name + (s.n === DEFAULT_SUN_VARIANT ? ' ★' : '');
+    b.addEventListener('click', () => buildSky(s.n));
     bar.appendChild(b);
-    buttons.set(letter, b);
   }
   window.addEventListener('keydown', (e) => {
-    const k = e.key.toUpperCase();
-    if (k === 'A' || k === 'B' || k === 'C') select(k);
-    if (k === ' ') pauseBtn.click();
+    if (e.key === '1' || e.key === '2' || e.key === '3') buildSky(Number(e.key));
+    if (e.key === ' ') pauseBtn.click();
   });
 }
 
-function select(letter: string): void {
-  const s = styles.find((x) => x.letter === letter);
-  if (!s) return;
-  for (const x of styles) x.group.visible = x === s;
-  current = s;
-  for (const [l, b] of buttons) b.classList.toggle('on', l === letter);
-  renderLegend(s);
-  const u = new URL(location.href);
-  u.searchParams.set('style', letter);
-  history.replaceState(null, '', u);
-}
+const LIC = 'Tuiles Kenney Voxel Pack (CC0) · forme construite en code';
+const ROWS = [
+  { name: 'Nuages', what: '5 galettes de gros blocs blancs qui dérivent lentement', src: 'Laine blanche du jeu' },
+  { name: 'Soleil', what: '', src: 'Laine teintée jaune / orangé ; halo = blocs couleur ciel mélangée' },
+  { name: 'Montgolfières', what: '3 boules de laine à rayures qui montent, descendent et tournent', src: 'Laine teintée + nacelle en planches du jeu' },
+  { name: 'Arc-en-ciel', what: 'Arche « pixelisée » de blocs de laine, 7 couleurs, en face du soleil', src: 'Laine teintée du jeu' },
+  { name: 'Oiseaux', what: '3 vols en V (5, 3 et 4 oiseaux) qui font le tour du ciel, ailes qui battent', src: 'Laine teintée du jeu' },
+  { name: 'Dragon', what: 'Un dragon vert rigolo (grands yeux, petite dent) qui fait de grands cercles lents', src: 'Laine teintée du jeu, aucun feu' },
+];
 
 const cardsEl = document.getElementById('cards')!;
 const costEl = document.getElementById('cost')!;
 let liveEl: HTMLElement | null = null;
 
-function renderLegend(s: SkyStyle): void {
-  cardsEl.innerHTML = s.rows
-    .map(
-      (r) =>
-        `<div class="card"><span class="name">${r.name}</span>` +
-        `<span class="badge ${r.kind}">${r.kind === 'asset' ? 'Image ' + r.license : 'Procédural'}</span>` +
-        `<div class="what">${r.what}</div><div class="src">${r.source}${r.kind === 'proc' ? ` — ${r.license}` : ''}</div></div>`,
-    )
-    .join('');
+function renderLegend(): void {
+  const sunText = SUNS[sunVariant - 1].text;
+  cardsEl.innerHTML = ROWS.map(
+    (r) =>
+      `<div class="card"><span class="name">${r.name}</span><span class="badge proc">Blocs</span>` +
+      `<div class="what">${r.what || sunText}</div><div class="src">${r.src}</div></div>`,
+  ).join('');
+  const s = sky!;
   costEl.innerHTML =
-    `<span class="tag" style="background:${STYLE_COLORS[s.letter]};color:#fff">${s.letter} · ${s.name}</span>` +
-    `<span>${s.costText}</span><span class="live" id="live"></span>`;
+    `<span class="tag">A · Blocs</span><span>${LIC} — aucune image ajoutée · ` +
+    `${sunVariant === 3 ? 2 : 1} draw call${sunVariant === 3 ? 's' : ''} · ${s.cubes} cubes instanciés · ≈ ${s.triangles.toLocaleString('fr-FR')} triangles · ` +
+    `1 matériau, texture 64×128 px · coût tablette : faible</span><span class="live" id="live"></span>`;
   liveEl = document.getElementById('live');
 }
 
 // ---------- Chargement ----------
 async function main(): Promise<void> {
-  const [{ atlas, tiles }, sprites] = await Promise.all([loadBlockTextures(), loadSpriteImages()]);
+  const { atlas, tiles } = await loadBlockTextures();
   if (!tiles) throw new Error('Tuiles du jeu indisponibles');
+  wool = tiles.get('wool_white')!;
+  planks = tiles.get('planks')!;
 
   const world = new World();
   generateWorld(world, Number(params.get('seed') ?? 20240611));
@@ -162,51 +165,31 @@ async function main(): Promise<void> {
   const spawn = findSpawn(world);
   camera.position.set(spawn.x, spawn.y + EYE_HEIGHT, spawn.z);
 
-  const gameTiles = tiles as unknown as GameTiles;
-  styles = [createStyleA(gameTiles), createStyleB(sprites), createStyleC(gameTiles, sprites)];
-  for (const s of styles) {
-    s.group.visible = false;
-    skyScene.add(s.group);
-    s.update(0, 0);
-  }
   buildButtons();
-  select(params.get('style')?.toUpperCase() ?? 'A');
+  buildSky(Math.min(3, Math.max(1, Number(params.get('sun') ?? DEFAULT_SUN_VARIANT))));
   document.getElementById('loading')!.remove();
-  Object.assign(window, { scene, skyScene, camera, skyCamera, renderer, styles });
+  Object.assign(window, { scene, camera, renderer, getSky: () => sky });
   loop();
 }
 
 // ---------- Boucle ----------
 const fpsEl = document.getElementById('fps')!;
-const clock = new THREE.Clock();
-let t = 0;
+let lastT = performance.now();
 let frames = 0;
 let lastFpsT = performance.now();
-let skyCalls = 0;
-let skyTris = 0;
-let worldCalls = 0;
 
 function loop(): void {
   requestAnimationFrame(loop);
-  const dt = Math.min(clock.getDelta(), 0.1);
-  t += dt;
+  const nowT = performance.now();
+  const dt = Math.min((nowT - lastT) / 1000, 0.1);
+  lastT = nowT;
+  skyTime += dt;
   if (autoRotate && !dragging) yaw += AUTO_SPEED * dt;
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
-  camera.updateMatrixWorld();
-  // Caméra ciel : même orientation, reste à l'origine (le ciel suit le joueur en position).
-  skyCamera.quaternion.copy(camera.quaternion);
-  skyCamera.updateMatrixWorld();
-
-  current?.update(t, dt);
-
-  renderer.info.reset();
-  renderer.render(skyScene, skyCamera);
-  skyCalls = renderer.info.render.calls;
-  skyTris = renderer.info.render.triangles;
-  renderer.clearDepth();
+  sky!.update(dt);
+  sky!.render(renderer, camera);
+  const skyTris = renderer.info.render.triangles;
   renderer.render(scene, camera);
-  worldCalls = renderer.info.render.calls - skyCalls;
-
   frames++;
   const now = performance.now();
   if (now - lastFpsT >= 500) {
@@ -214,8 +197,8 @@ function loop(): void {
     fpsEl.textContent = `${fps.toFixed(0)} fps`;
     if (liveEl) {
       liveEl.textContent =
-        `mesuré : ciel ${skyCalls} draw calls / ${skyTris.toLocaleString('fr-FR')} tri · ` +
-        `monde ${worldCalls} draw calls · ${fps.toFixed(0)} fps`;
+        `mesuré : ciel ${sky!.lastCalls} draw call(s) / ${skyTris.toLocaleString('fr-FR')} tri · ` +
+        `monde ${renderer.info.render.calls} draw calls · ${fps.toFixed(0)} fps`;
     }
     frames = 0;
     lastFpsT = now;
