@@ -117,19 +117,17 @@ export class World implements VoxelWorld {
   }
 
   raycast(origin: Vec3Like, dir: Vec3Like, maxDist: number): RaycastHit | null {
-    const data = this.data;
-    const sx = this.sizeX;
-    const sz = this.sizeZ;
-    return raycastVoxels(
-      (x, y, z) => data[x + sx * (z + sz * y)],
-      this.sizeX,
-      this.sizeY,
-      this.sizeZ,
-      origin,
-      dir,
-      maxDist,
-    );
+    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist);
   }
+
+  /** Comme raycast(), sans allocation : remplit et renvoie `out` (ou `null` si rien n'est touché). */
+  raycastInto(origin: Vec3Like, dir: Vec3Like, maxDist: number, out: RaycastHit): RaycastHit | null {
+    return raycastVoxels(this.rawGet, this.sizeX, this.sizeY, this.sizeZ, origin, dir, maxDist, out);
+  }
+
+  /** Lecture sans contrôle (coordonnées dans le volume), créée une fois pour le raycast. */
+  private readonly rawGet = (x: number, y: number, z: number): number =>
+    this.data[x + this.sizeX * (z + this.sizeZ * y)];
 
   onChange(cb: ChangeListener): () => void {
     this.listeners.add(cb);

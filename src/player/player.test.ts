@@ -226,6 +226,15 @@ describe('Player – regard et utilitaires', () => {
     expect(r2.dir.y).toBeGreaterThan(0);
   });
 
+  it('getLookRayInto : mêmes valeurs que getLookRay, dans l’objet fourni', () => {
+    const p = new Player({ x: 1, y: 2, z: 3 }, 0.7, -0.2);
+    const out = { origin: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: 0 } };
+    const origin = out.origin;
+    expect(p.getLookRayInto(out)).toBe(out);
+    expect(out.origin).toBe(origin);
+    expect(out).toEqual(p.getLookRay());
+  });
+
   it('wouldIntersectPlayer', () => {
     const p = new Player({ x: 0.5, y: 1, z: 0.5 });
     expect(p.wouldIntersectPlayer(0, 1, 0)).toBe(true);

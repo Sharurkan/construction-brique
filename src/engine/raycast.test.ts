@@ -79,3 +79,27 @@ describe('raycast', () => {
     expect(hit!.normal).toEqual([0, 0, -1]);
   });
 });
+
+describe('raycastInto (sans allocation)', () => {
+  it('même résultat que raycast, dans l’objet fourni ; null si rien', async () => {
+    const { createRaycastHit } = await import('./raycast');
+    const w = new World(32, 32, 32);
+    w.setBlock(10, 5, 10, BlockId.Stone);
+    const out = createRaycastHit();
+    const o = { x: 10.5, y: 12, z: 10.5 };
+    const d = { x: 0.02, y: -1, z: 0.01 };
+    const ref = w.raycast(o, d, 20);
+    expect(ref?.block).toEqual([10, 5, 10]);
+    const hit = w.raycastInto(o, d, 20, out);
+    expect(hit).toBe(out);
+    expect(hit).toEqual(ref);
+    // Réutilisation : un second appel écrase le même objet.
+    w.setBlock(3, 3, 3, BlockId.Dirt);
+    const hit2 = w.raycastInto({ x: 3.5, y: 10, z: 3.5 }, { x: 0, y: -1, z: 0 }, 20, out);
+    expect(hit2).toBe(out);
+    expect(out.block).toEqual([3, 3, 3]);
+    expect(out.normal).toEqual([0, 1, 0]);
+    expect(out.id).toBe(BlockId.Dirt);
+    expect(w.raycastInto({ x: 3.5, y: 10, z: 3.5 }, { x: 0, y: 1, z: 0 }, 20, out)).toBeNull();
+  });
+});

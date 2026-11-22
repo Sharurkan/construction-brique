@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { BlockId, SAVE_VERSION, type GameActions, type RaycastHit, type SavedWorld } from '../core/types';
-import { BLOCKS, PALETTE, World, WorldRenderer, findSpawn, generateWorld } from '../engine';
+import { BLOCKS, PALETTE, World, WorldRenderer, createRaycastHit, findSpawn, generateWorld } from '../engine';
 import { InputManager } from '../controls/input';
 import { Player } from '../player/player';
 import { Hud } from '../ui/hud';
@@ -199,9 +199,13 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
   // ---------- Actions ----------
   let boostRemesh = false;
+  // Objets réutilisés à chaque frame (pas d'allocation dans la boucle). Le résultat est
+  // valable jusqu'au prochain appel de target().
+  const lookRay = player.getLookRayInto({ origin: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: 0 } });
+  const hitOut = createRaycastHit();
   const target = (): RaycastHit | null => {
-    const ray = player.getLookRay();
-    return world.raycast(ray.origin, ray.dir, REACH);
+    player.getLookRayInto(lookRay);
+    return world.raycastInto(lookRay.origin, lookRay.dir, REACH, hitOut);
   };
 
   let hud: Hud | null = null;
