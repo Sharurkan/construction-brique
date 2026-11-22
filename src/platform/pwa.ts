@@ -4,23 +4,37 @@
  * pas l'API concernée (elles ne lèvent jamais).
  */
 import { registerSW } from 'virtual:pwa-register';
+import { createUpdatePolicy, type UpdateServiceWorker } from './pwaUpdate';
 
 export interface RegisterPwaOptions {
   /** Le jeu est en cache : il fonctionnera hors ligne. */
   onOfflineReady?: () => void;
   onError?: (err: unknown) => void;
+  /**
+   * Vrai tant qu'on peut recharger la page sans gêner l'enfant (écran de démarrage encore
+   * affiché). Défaut : jamais (la mise à jour attend le prochain lancement).
+   */
+  canReloadNow?: () => boolean;
 }
 
 /**
- * Enregistre le service worker (mode `autoUpdate` : une nouvelle version s'installe et
- * recharge la page automatiquement). À appeler une fois au démarrage.
- * Pensez à `autosave.flush()` : le rechargement déclenche aussi `pagehide`.
+ * Enregistre le service worker (mode `prompt` : une nouvelle version s'installe puis ATTEND).
+ * Elle est appliquée tout de suite seulement si `canReloadNow()` (écran de démarrage) ;
+ * sinon au prochain lancement du jeu — jamais de rechargement en pleine partie.
+ * À appeler une fois au démarrage.
  */
 export function registerPwa(opts: RegisterPwaOptions = {}): void {
   try {
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-    registerSW({
+    let updateSW: UpdateServiceWorker | null = null;
+    const policy = createUpdatePolicy(
+      () => updateSW,
+      opts.canReloadNow ?? (() => false),
+      (err) => opts.onError?.(err),
+    );
+    updateSW = registerSW({
       immediate: true,
+      onNeedRefresh: () => policy.onNeedRefresh(),
       onOfflineReady: opts.onOfflineReady,
       onRegisterError: (err: unknown) => opts.onError?.(err),
     });

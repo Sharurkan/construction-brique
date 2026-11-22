@@ -12,7 +12,9 @@ export default defineConfig({
   build: { target: 'es2020' },
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      // « prompt » : une nouvelle version attend ; pwa.ts ne l'applique que sur l'écran de démarrage
+      // (sinon au prochain lancement). Jamais de rechargement en pleine partie.
+      registerType: 'prompt',
       // L'enregistrement est fait par src/platform/pwa.ts (registerPwa).
       injectRegister: false,
       // Les icônes et le favicon sont déjà couverts par globPatterns (dossier public/).
@@ -46,8 +48,6 @@ export default defineConfig({
         navigateFallback: `${BASE}index.html`,
         navigateFallbackDenylist: [/\/demos\//],
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
       },
       devOptions: { enabled: false },
     }),

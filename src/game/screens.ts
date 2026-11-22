@@ -14,7 +14,15 @@ const CLOSE_ICON = svg('<path d="M12 12 L36 36 M36 12 L12 36" fill="none" stroke
  * Le clic sert de geste utilisateur (plein écran, déverrouillage audio).
  * `onPlay` est appelé une seule fois, puis l'écran disparaît en fondu.
  */
+let startScreenVisible = false;
+
+/** Vrai tant que l'écran de démarrage attend l'appui sur « jouer » (on peut alors recharger la page sans gêner). */
+export function isStartScreenVisible(): boolean {
+  return startScreenVisible;
+}
+
 export function showStartScreen(parent: HTMLElement, onPlay: () => void): HTMLElement {
+  startScreenVisible = true;
   const screen = document.createElement('div');
   screen.className = 'cb-start';
   screen.setAttribute(NO_LOOK_ATTR, '');
@@ -31,6 +39,7 @@ export function showStartScreen(parent: HTMLElement, onPlay: () => void): HTMLEl
     e.stopPropagation();
     if (done) return;
     done = true;
+    startScreenVisible = false;
     onPlay();
     screen.classList.add('is-leaving');
     window.setTimeout(() => screen.remove(), 350);

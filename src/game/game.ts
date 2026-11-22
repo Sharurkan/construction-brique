@@ -19,7 +19,7 @@ import { applyUiAssets } from './uiAssets';
 import { SOUNDS } from '../assets/manifest';
 import { BlockHighlight } from './highlight';
 import { BreakParticles } from './particles';
-import { CreditsPanel, showStartScreen } from './screens';
+import { CreditsPanel, isStartScreenVisible, showStartScreen } from './screens';
 import { CREDITS_TEXT } from './credits';
 import { DebugOverlay } from './debug';
 import { PixelRatioAdjuster } from './pixelRatio';
@@ -56,7 +56,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
   const debug = params.has('debug');
   const forcedPixelRatio = Number(params.get('pr')) > 0 ? Number(params.get('pr')) : null;
 
-  registerPwa();
+  // Mise à jour du jeu : appliquée seulement avant « jouer », sinon au prochain lancement.
+  registerPwa({ canReloadNow: isStartScreenVisible });
 
   // Sons Kenney (manifeste) : téléchargés et décodés seulement après le premier geste.
   const sound = new WebAudioSoundPlayer(SOUNDS);
