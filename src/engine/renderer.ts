@@ -42,7 +42,7 @@ export class WorldRenderer {
     pending: 0,
   };
 
-  private atlas: TextureAtlas;
+  private readonly atlas: TextureAtlas;
   private readonly materials: ChunkMaterials;
   private readonly transparentMaterials: THREE.Material[];
   private readonly chunks = new Map<number, ChunkEntry>();
@@ -110,11 +110,34 @@ export class WorldRenderer {
     this.stats.pending = 0;
   }
 
-  /** Change d'atlas (Phase 2 : vrai pack de textures). Les index de tuiles pouvant changer, tout est remaillé. */
-  setAtlas(atlas: TextureAtlas): void {
-    this.atlas = atlas;
-    this.materials.setAtlas(atlas);
-    this.rebuildAll();
+  /**
+   * Monde entièrement changé (chargement, nouveau monde) sans gel : tous les chunks sont mis
+   * en file, ceux à au plus `radius` chunks de `focus` (sur les 3 axes, donc aussi celui sous
+   * les pieds) sont remaillés tout de suite ; les autres suivront via update(), du plus proche
+   * au plus lointain. Renvoie le nombre de chunks remaillés immédiatement.
+   */
+  rebuildAround(focus: { x: number; y: number; z: number }, radius = 1): number {
+    const t0 = performance.now();
+    this.world.markAllDirty();
+    this.pullDirty();
+    const fx = Math.floor(focus.x / CHUNK_SIZE);
+    const fy = Math.floor(focus.y / CHUNK_SIZE);
+    const fz = Math.floor(focus.z / CHUNK_SIZE);
+    const { chunksX, chunksY, chunksZ } = this.world;
+    let n = 0;
+    for (let cy = Math.max(0, fy - radius); cy <= Math.min(chunksY - 1, fy + radius); cy++) {
+      for (let cz = Math.max(0, fz - radius); cz <= Math.min(chunksZ - 1, fz + radius); cz++) {
+        for (let cx = Math.max(0, fx - radius); cx <= Math.min(chunksX - 1, fx + radius); cx++) {
+          const k = this.key(cx, cy, cz);
+          this.queue.delete(k);
+          this.remesh(k);
+          n++;
+        }
+      }
+    }
+    this.stats.lastRebuildMs = performance.now() - t0;
+    this.stats.pending = this.queue.size;
+    return n;
   }
 
   /** Matériaux des chunks (fog = true : un scene.fog s'applique automatiquement). */

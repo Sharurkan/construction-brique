@@ -41,6 +41,11 @@ const FLY_CEILING_MARGIN = 8;
 /** Chunks remaillés par frame : normal / juste après une action du joueur (réponse immédiate). */
 const REMESH_PER_FRAME = 2;
 const REMESH_AFTER_ACTION = 8;
+/** Après un changement de monde : beaucoup de chunks en attente → un peu plus par frame. */
+const REMESH_BACKLOG = 4;
+const REMESH_BACKLOG_THRESHOLD = 16;
+/** Rayon (en chunks) remaillé tout de suite autour du joueur au chargement / nouveau monde. */
+const REMESH_SYNC_RADIUS = 1;
 /** Pas de dt plus grand que ça (onglet ralenti, gros à-coup). */
 const MAX_FRAME_DT = 0.1;
 const STEP_INTERVAL = 0.45;
@@ -122,7 +127,6 @@ export async function startGame(app: HTMLElement): Promise<void> {
   if (!restored) generateWorld(world, seed);
 
   const worldRenderer = new WorldRenderer(world, scene, atlas);
-  worldRenderer.rebuildAll();
 
   // ---------- Joueur ----------
   const spawn = findSpawn(world);
@@ -136,6 +140,8 @@ export async function startGame(app: HTMLElement): Promise<void> {
     player.state.yaw = restored.player.yaw;
     player.state.pitch = restored.player.pitch;
   }
+  // Remaillage sans gel : chunks autour du joueur tout de suite, le reste au fil des frames.
+  worldRenderer.rebuildAround(player.state.position, REMESH_SYNC_RADIUS);
 
   let selected: BlockId =
     restored && PALETTE.includes(restored.selected as BlockId) ? (restored.selected as BlockId) : PALETTE[0];
@@ -231,10 +237,10 @@ export async function startGame(app: HTMLElement): Promise<void> {
       }
       seed = randomSeed();
       generateWorld(world, seed);
-      worldRenderer.rebuildAll();
       const s = findSpawn(world);
       player.setSpawn(s);
       player.teleport(s);
+      worldRenderer.rebuildAround(s, REMESH_SYNC_RADIUS);
       player.state.yaw = 0;
       player.state.pitch = 0;
       if (player.flying) {
@@ -276,9 +282,9 @@ export async function startGame(app: HTMLElement): Promise<void> {
       return false;
     }
     seed = s.seed;
-    worldRenderer.rebuildAll();
     player.setSpawn(findSpawn(world));
     player.teleport(s.player.position);
+    worldRenderer.rebuildAround(s.player.position, REMESH_SYNC_RADIUS);
     player.state.yaw = s.player.yaw;
     player.state.pitch = s.player.pitch;
     if (PALETTE.includes(s.selected as BlockId)) {
@@ -397,7 +403,14 @@ export async function startGame(app: HTMLElement): Promise<void> {
 
     highlight.update(target());
     particles.update(dt);
-    worldRenderer.update(boostRemesh ? REMESH_AFTER_ACTION : REMESH_PER_FRAME, p);
+    worldRenderer.update(
+      boostRemesh
+        ? REMESH_AFTER_ACTION
+        : worldRenderer.stats.pending > REMESH_BACKLOG_THRESHOLD
+          ? REMESH_BACKLOG
+          : REMESH_PER_FRAME,
+      p,
+    );
     boostRemesh = false;
 
     renderer.render(scene, camera);
