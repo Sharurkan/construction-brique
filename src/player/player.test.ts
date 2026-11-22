@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { CollisionWorld } from '../core/types';
 import { MAX_PITCH } from '../controls/gestures';
-import { blockIntersectsPlayer, JUMP_HEIGHT, Player, WALK_SPEED, type PlayerInput } from './player';
+import { BlockId } from '../core/types';
+import { World } from '../engine/world';
+import {
+  blockIntersectsPlayer,
+  EYE_HEIGHT,
+  JUMP_HEIGHT,
+  MAX_SINK_SPEED,
+  Player,
+  SWIM_SPEED_FACTOR,
+  WALK_SPEED,
+  type PlayerInput,
+} from './player';
 
 class SetWorld implements CollisionWorld {
   readonly blocks = new Set<string>();
@@ -278,5 +289,114 @@ describe('Player – plafond de vol', () => {
     p.setVerticalBounds(null);
     run(p, w, 1, input({ jump: true }));
     expect(p.state.position.y).toBeGreaterThan(100);
+  });
+});
+
+describe('Player – nage', () => {
+  /**
+   * Sol de pierre jusqu'à y = 5 (on marche à y = 6) et une piscine de 3 de profondeur
+   * (x, z dans [8, 20), fond à y = 3). `brim` : eau jusqu'au ras du sol (surface y = 6) ;
+   * sinon la surface est à y = 5 et la berge dépasse d'un bloc.
+   */
+  function pool(brim: boolean): World {
+    const w = new World(32, 16, 32);
+    for (let x = 0; x < 32; x++) {
+      for (let z = 0; z < 32; z++) {
+        const inPool = x >= 8 && x < 20 && z >= 8 && z < 20;
+        for (let y = 0; y <= 5; y++) {
+          if (!inPool || y < 3) w.setBlockRaw(x, y, z, BlockId.Stone);
+          else if (brim || y < 5) w.setBlockRaw(x, y, z, BlockId.Water);
+        }
+      }
+    }
+    return w;
+  }
+
+  it("dans l'eau : on coule doucement jusqu'au fond, sans traverser", () => {
+    const w = pool(true);
+    const p = new Player({ x: 14, y: 5.5, z: 14 });
+    run(p, w, 0.5, input());
+    expect(p.inWater).toBe(true);
+    expect(p.velocity.y).toBeGreaterThanOrEqual(-MAX_SINK_SPEED - 0.01);
+    expect(p.state.position.y).toBeGreaterThan(4.5); // lent : bien moins qu'une chute normale
+    run(p, w, 4, input());
+    expect(p.state.position.y).toBeCloseTo(3, 2);
+    expect(p.onGround).toBe(true);
+  });
+
+  it("une chute dans l'eau est vite amortie", () => {
+    const w = pool(true);
+    const p = new Player({ x: 14, y: 14, z: 14 });
+    let t = 0;
+    while (!p.inWater && t < 3) {
+      p.update(1 / 60, input(), w); // ≈ 8 blocs de chute libre
+      t += 1 / 60;
+    }
+    expect(p.inWater).toBe(true);
+    expect(p.velocity.y).toBeLessThan(-10); // arrive vite…
+    run(p, w, 0.3, input());
+    expect(p.velocity.y).toBeGreaterThan(-MAX_SINK_SPEED - 1); // …et freine en 0,3 s
+    expect(p.state.position.y).toBeGreaterThanOrEqual(3); // sans traverser le fond
+  });
+
+  it('SAUTER maintenu = nager vers le haut : on ne coule jamais indéfiniment', () => {
+    const w = pool(true);
+    const p = new Player({ x: 14, y: 3, z: 14 });
+    run(p, w, 3, input({ jump: true }));
+    expect(p.state.position.y + EYE_HEIGHT).toBeGreaterThan(6); // tête hors de l'eau
+    expect(p.headInWater).toBe(false);
+    let minY = Infinity;
+    for (let i = 0; i < 600; i++) {
+      p.update(1 / 60, input({ jump: true }), w);
+      minY = Math.min(minY, p.state.position.y);
+    }
+    expect(minY).toBeGreaterThan(4.5); // reste à la surface tant qu'on nage
+    expect(p.state.position.y).toBeLessThan(8); // pas de « fusée » non plus
+  });
+
+  it('tête sous l\'eau au fond (voile bleu)', () => {
+    const w = pool(true);
+    const p = new Player({ x: 14, y: 3, z: 14 });
+    run(p, w, 0.1, input());
+    expect(p.headInWater).toBe(true);
+  });
+
+  it("déplacement ralenti (~60 %) dans l'eau", () => {
+    const w = pool(true);
+    const p = new Player({ x: 14, y: 3, z: 19 });
+    run(p, w, 0.2, input());
+    const z0 = p.state.position.z;
+    run(p, w, 1, input({ move: { x: 0, z: 1 } }));
+    const d = z0 - p.state.position.z;
+    expect(d).toBeCloseTo(WALK_SPEED * SWIM_SPEED_FACTOR, 0);
+    expect(d).toBeLessThan(WALK_SPEED * 0.7);
+  });
+
+  for (const brim of [true, false]) {
+    it(`sort d'une piscine de 3 de profondeur en avançant contre le bord (${brim ? 'eau au ras du sol' : "berge d'un bloc"})`, () => {
+      const w = pool(brim);
+      const p = new Player({ x: 14, y: 3, z: 14 }); // au fond, au milieu
+      // Avance vers -Z (yaw 0), sans toucher SAUTER.
+      run(p, w, 6, input({ move: { x: 0, z: 1 } }));
+      expect(p.state.position.z).toBeLessThan(8); // hors de la piscine
+      expect(p.state.position.y).toBeCloseTo(6, 2); // debout sur le sol
+      expect(p.inWater).toBe(false);
+      expect(p.onGround).toBe(true);
+    });
+  }
+
+  it("en vol, l'eau est ignorée (pas de chute, pas de nage)", () => {
+    const w = pool(true);
+    const p = new Player({ x: 14, y: 4, z: 14 });
+    p.toggleFly();
+    run(p, w, 0.5, input());
+    expect(p.state.position.y).toBeCloseTo(4, 5);
+  });
+
+  it("monde sans eau (isWater absent) : jamais dans l'eau", () => {
+    const p = new Player({ x: 0.5, y: 1, z: 0.5 });
+    run(p, flat(), 0.5, input());
+    expect(p.inWater).toBe(false);
+    expect(p.headInWater).toBe(false);
   });
 });
