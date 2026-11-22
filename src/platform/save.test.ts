@@ -6,6 +6,7 @@ import {
   EMERGENCY_SAVE_KEY,
   EmergencyBackedSaveStore,
   hasEmergencySave,
+  hasPreviousSlot,
   IndexedDbSaveStore,
   LocalStorageSaveStore,
   MemorySaveStore,
@@ -360,5 +361,92 @@ describe('EmergencyBackedSaveStore', () => {
     await s.clear();
     expect(storage.getItem(EMERGENCY_SAVE_KEY)).toBeNull();
     expect(await s.load()).toBeNull();
+  });
+});
+
+describe('monde précédent (nouveau monde annulable)', () => {
+  const stores: Array<[string, () => SaveStore]> = [
+    ['IndexedDB', () => freshIdb()],
+    ['localStorage', () => new LocalStorageSaveStore(new FakeStorage())],
+    ['mémoire', () => new MemorySaveStore()],
+    ['IndexedDB + urgence', () => new EmergencyBackedSaveStore(freshIdb(), new FakeStorage())],
+  ];
+
+  it.each(stores)('%s : savePrevious, hasPrevious, échange réversible', async (_label, make) => {
+    const s = make();
+    expect(hasPreviousSlot(s)).toBe(true);
+    if (!hasPreviousSlot(s)) return;
+    const a = makeWorld({ seed: 1, savedAt: 1000 });
+    const b = makeWorld({ seed: 2, savedAt: 2000 });
+    a.blocks[5] = BlockId.Glass;
+
+    expect(await s.hasPrevious()).toBe(false);
+    expect(await s.swapWithPrevious(b)).toBeNull(); // rien à restaurer : rien ne change
+    // « Nouveau monde » : l'ancien (a) part dans « précédent », le nouveau (b) devient courant.
+    await s.save(a);
+    await s.savePrevious(a);
+    await s.save(b);
+    expect(await s.hasPrevious()).toBe(true);
+    expect((await s.load())?.seed).toBe(2);
+
+    const restored = await s.swapWithPrevious(b);
+    expect(restored?.seed).toBe(1);
+    expect(restored?.blocks[5]).toBe(BlockId.Glass);
+    expect((await s.load())?.seed).toBe(1);
+    // Annuler la restauration : nouvel échange.
+    const again = await s.swapWithPrevious(restored!);
+    expect(again?.seed).toBe(2);
+    expect((await s.load())?.seed).toBe(2);
+    expect(await s.hasPrevious()).toBe(true);
+  });
+
+  it('IndexedDB : le précédent survit à une nouvelle instance', async () => {
+    const name = `test-db-prev-${++dbCounter}`;
+    const s1 = new IndexedDbSaveStore({ dbName: name });
+    await s1.savePrevious(makeWorld({ seed: 7 }));
+    const s2 = new IndexedDbSaveStore({ dbName: name });
+    expect(await s2.hasPrevious()).toBe(true);
+    expect(await s2.load()).toBeNull(); // le précédent n'est jamais renvoyé par load()
+  });
+
+  it('urgence : effacée après un échange (elle concerne l’ancien monde courant)', async () => {
+    const storage = new FakeStorage();
+    const s = new EmergencyBackedSaveStore(freshIdb(), storage);
+    await s.savePrevious(makeWorld({ seed: 1, savedAt: 1000 }));
+    await s.save(makeWorld({ seed: 2, savedAt: 2000 }));
+    s.saveEmergency(makeWorld({ seed: 2, savedAt: 3000 }));
+    const restored = await s.swapWithPrevious(makeWorld({ seed: 2, savedAt: 3000 }));
+    expect(restored?.seed).toBe(1);
+    expect(storage.getItem(EMERGENCY_SAVE_KEY)).toBeNull();
+    expect((await s.load())?.seed).toBe(1);
+  });
+
+  it('précédent corrompu : hasPrevious = false, échange refusé', async () => {
+    const name = `test-db-prev-${++dbCounter}`;
+    const raw = new IndexedDbSaveStore({ dbName: name, key: 'previous' });
+    await raw.putRaw({ version: 1, blocks: 'n’importe quoi' });
+    const s = new IndexedDbSaveStore({ dbName: name });
+    expect(await s.hasPrevious()).toBe(false);
+    expect(await s.swapWithPrevious(makeWorld())).toBeNull();
+  });
+});
+
+describe('IndexedDB : connexion fermée par le navigateur', () => {
+  it('rouvre la base et réessaie une fois après InvalidStateError', async () => {
+    const s = freshIdb();
+    await s.save(makeWorld({ seed: 11 }));
+    const db = await s.open();
+    db.close(); // close() ne déclenche pas onclose : la connexion mémorisée est morte
+    await s.save(makeWorld({ seed: 12 }));
+    expect((await s.load())?.seed).toBe(12);
+  });
+
+  it('onclose oublie la connexion', async () => {
+    const s = freshIdb();
+    const db1 = await s.open();
+    db1.onclose?.call(db1, new Event('close'));
+    const db2 = await s.open();
+    expect(db2).not.toBe(db1);
+    db1.close();
   });
 });

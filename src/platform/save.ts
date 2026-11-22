@@ -73,27 +73,54 @@ export function validateSavedWorld(raw: unknown): SavedWorld | null {
   }
 }
 
+// ---------- Monde précédent (« annuler » un nouveau monde) ----------
+
+/**
+ * Store capable de garder une copie du monde précédent (avant « nouveau monde »).
+ * Restaurer = échanger courant ↔ précédent : on peut donc annuler une restauration.
+ */
+export interface PreviousWorldCapable {
+  /** Écrit `world` dans l'emplacement « précédent » (le courant n'est pas touché). */
+  savePrevious(world: SavedWorld): Promise<void>;
+  /** Vrai si une copie précédente valide existe. Ne rejette jamais. */
+  hasPrevious(): Promise<boolean>;
+  /**
+   * `current` devient le précédent et l'ancien précédent devient le courant (renvoyé).
+   * Renvoie `null` sans rien modifier s'il n'y a pas de copie précédente valide.
+   */
+  swapWithPrevious(current: SavedWorld): Promise<SavedWorld | null>;
+}
+
+export function hasPreviousSlot(store: SaveStore): store is SaveStore & PreviousWorldCapable {
+  const s = store as Partial<PreviousWorldCapable>;
+  return (
+    typeof s.savePrevious === 'function' &&
+    typeof s.hasPrevious === 'function' &&
+    typeof s.swapWithPrevious === 'function'
+  );
+}
+
 // ---------- IndexedDB ----------
 
 export interface IndexedDbSaveStoreOptions {
   dbName?: string;
   storeName?: string;
   key?: string;
+  /** Clé de la copie du monde précédent (même store). Défaut `previous`. */
+  previousKey?: string;
   /** Pour les tests ; par défaut `globalThis.indexedDB`. */
   factory?: IDBFactory;
 }
 
-function reqToPromise<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error('IndexedDB : erreur de requête'));
-  });
+function isInvalidStateError(e: unknown): boolean {
+  return !!e && typeof e === 'object' && (e as { name?: unknown }).name === 'InvalidStateError';
 }
 
-export class IndexedDbSaveStore implements SaveStore {
+export class IndexedDbSaveStore implements SaveStore, PreviousWorldCapable {
   private readonly dbName: string;
   private readonly storeName: string;
   private readonly key: string;
+  private readonly previousKey: string;
   private readonly factory: IDBFactory;
   private dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -101,6 +128,7 @@ export class IndexedDbSaveStore implements SaveStore {
     this.dbName = opts.dbName ?? 'construction-brique';
     this.storeName = opts.storeName ?? 'worlds';
     this.key = opts.key ?? 'current';
+    this.previousKey = opts.previousKey ?? 'previous';
     const factory = opts.factory ?? (globalThis as { indexedDB?: IDBFactory }).indexedDB;
     if (!factory) throw new Error('IndexedDB indisponible');
     this.factory = factory;
@@ -128,6 +156,11 @@ export class IndexedDbSaveStore implements SaveStore {
             db.close();
             this.dbPromise = null;
           };
+          // Fermeture imposée par le navigateur (stockage effacé, manque de mémoire…) :
+          // la prochaine opération rouvrira la base.
+          db.onclose = () => {
+            this.dbPromise = null;
+          };
           resolve(db);
         };
         req.onerror = () => reject(req.error ?? new Error('IndexedDB : ouverture impossible'));
@@ -140,26 +173,84 @@ export class IndexedDbSaveStore implements SaveStore {
     return this.dbPromise;
   }
 
-  private async tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-    const db = await this.open();
-    return new Promise<T>((resolve, reject) => {
-      const tx = db.transaction(this.storeName, mode);
-      const req = fn(tx.objectStore(this.storeName));
-      if (mode === 'readwrite') {
-        // Force le commit sans attendre la fin de la tâche courante : augmente les chances que
-        // l'écriture aboutisse si la page est détruite juste après (pagehide, appli tuée).
-        try {
-          (tx as { commit?: () => void }).commit?.();
-        } catch {
-          /* commit() indisponible ou transaction déjà terminée : commit automatique */
+  /**
+   * Exécute une transaction. `body` lance les requêtes et renvoie une fonction lue à la fin
+   * (`oncomplete`) pour produire le résultat. Si la connexion a été fermée par le navigateur
+   * (`InvalidStateError` à la création de la transaction), on rouvre la base et on réessaie
+   * une fois.
+   */
+  private async run<T>(
+    mode: IDBTransactionMode,
+    body: (store: IDBObjectStore) => () => T,
+    commitEarly = false,
+  ): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      const db = await this.open();
+      let tx: IDBTransaction;
+      try {
+        tx = db.transaction(this.storeName, mode);
+      } catch (e) {
+        if (attempt === 0 && isInvalidStateError(e)) {
+          this.forget(db);
+          continue;
         }
+        throw e;
       }
-      let result: T;
-      reqToPromise(req).then((r) => (result = r), reject);
-      tx.oncomplete = () => resolve(result);
-      tx.onerror = () => reject(tx.error ?? new Error('IndexedDB : transaction en erreur'));
-      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB : transaction annulée'));
-    });
+      return await new Promise<T>((resolve, reject) => {
+        let getResult: () => T;
+        try {
+          getResult = body(tx.objectStore(this.storeName));
+        } catch (e) {
+          try {
+            tx.abort();
+          } catch {
+            /* déjà terminée */
+          }
+          reject(e);
+          return;
+        }
+        if (commitEarly) {
+          // Force le commit sans attendre la fin de la tâche courante : augmente les chances que
+          // l'écriture aboutisse si la page est détruite juste après (pagehide, appli tuée).
+          try {
+            (tx as { commit?: () => void }).commit?.();
+          } catch {
+            /* commit() indisponible ou transaction déjà terminée : commit automatique */
+          }
+        }
+        tx.oncomplete = () => {
+          try {
+            resolve(getResult());
+          } catch (e) {
+            reject(e);
+          }
+        };
+        tx.onerror = () => reject(tx.error ?? new Error('IndexedDB : transaction en erreur'));
+        tx.onabort = () => reject(tx.error ?? new Error('IndexedDB : transaction annulée'));
+      });
+    }
+  }
+
+  /** Une seule requête (les écritures sont validées sans attendre). */
+  private tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+    return this.run(
+      mode,
+      (s) => {
+        const req = fn(s);
+        return () => req.result;
+      },
+      mode === 'readwrite',
+    );
+  }
+
+  /** Oublie une connexion inutilisable : la prochaine opération rouvrira la base. */
+  private forget(db: IDBDatabase): void {
+    this.dbPromise = null;
+    try {
+      db.close();
+    } catch {
+      /* déjà fermée */
+    }
   }
 
   async load(): Promise<SavedWorld | null> {
@@ -169,6 +260,34 @@ export class IndexedDbSaveStore implements SaveStore {
     } catch {
       return null;
     }
+  }
+
+  async savePrevious(world: SavedWorld): Promise<void> {
+    await this.tx('readwrite', (s) => s.put(world, this.previousKey));
+  }
+
+  async hasPrevious(): Promise<boolean> {
+    try {
+      const raw = await this.tx('readonly', (s) => s.get(this.previousKey));
+      return validateSavedWorld(raw) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Échange courant ↔ précédent dans UNE transaction (tout ou rien). */
+  async swapWithPrevious(current: SavedWorld): Promise<SavedWorld | null> {
+    return this.run('readwrite', (s) => {
+      let restored: SavedWorld | null = null;
+      const req = s.get(this.previousKey);
+      req.onsuccess = () => {
+        restored = validateSavedWorld(req.result);
+        if (!restored) return;
+        s.put(current, this.previousKey);
+        s.put(restored, this.key);
+      };
+      return () => restored;
+    });
   }
 
   async save(world: SavedWorld): Promise<void> {
@@ -217,7 +336,7 @@ interface StoredLocalWorld extends Omit<SavedWorld, 'blocks'> {
   blocks: string;
 }
 
-export class LocalStorageSaveStore implements SaveStore {
+export class LocalStorageSaveStore implements SaveStore, PreviousWorldCapable {
   private readonly storage: KeyValueStorage;
   private readonly key: string;
 
@@ -280,6 +399,33 @@ export class LocalStorageSaveStore implements SaveStore {
   clearSync(): void {
     this.storage.removeItem(this.key);
   }
+
+  /** Copie du monde précédent, sous la clé `<clé>:previous`. */
+  private previousStore(): LocalStorageSaveStore {
+    return new LocalStorageSaveStore(this.storage, `${this.key}:previous`);
+  }
+
+  async savePrevious(world: SavedWorld): Promise<void> {
+    this.previousStore().saveSync(world);
+  }
+
+  async hasPrevious(): Promise<boolean> {
+    return (await this.previousStore().load()) !== null;
+  }
+
+  async swapWithPrevious(current: SavedWorld): Promise<SavedWorld | null> {
+    const prev = this.previousStore();
+    const restored = await prev.load();
+    if (!restored) return null;
+    prev.saveSync(current);
+    try {
+      this.saveSync(restored);
+    } catch (e) {
+      prev.saveSync(restored); // annule la première écriture
+      throw e;
+    }
+    return restored;
+  }
 }
 
 // ---------- Sauvegarde d'urgence (synchrone, localStorage) ----------
@@ -309,7 +455,7 @@ export function hasEmergencySave(store: SaveStore): store is SaveStore & Emergen
  * - l'urgence est effacée dès qu'une écriture principale confirmée est au moins aussi récente ;
  * - urgence corrompue : ignorée (puis effacée à la prochaine écriture principale).
  */
-export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable {
+export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable, PreviousWorldCapable {
   readonly primary: SaveStore;
   private readonly emergency: LocalStorageSaveStore;
   /** `false` quand on sait qu'aucune urgence n'est stockée (évite de relire localStorage). */
@@ -363,6 +509,33 @@ export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable
     await this.primary.clear();
   }
 
+  async savePrevious(world: SavedWorld): Promise<void> {
+    if (!hasPreviousSlot(this.primary)) throw new Error('Pas d’emplacement « précédent »');
+    await this.primary.savePrevious(world);
+  }
+
+  async hasPrevious(): Promise<boolean> {
+    return hasPreviousSlot(this.primary) ? this.primary.hasPrevious() : false;
+  }
+
+  async swapWithPrevious(current: SavedWorld): Promise<SavedWorld | null> {
+    if (!hasPreviousSlot(this.primary)) return null;
+    const restored = await this.primary.swapWithPrevious(current);
+    // L'urgence éventuelle concerne l'ANCIEN monde courant : elle ne doit pas écraser le
+    // monde restauré au prochain chargement.
+    if (restored) this.dropEmergency();
+    return restored;
+  }
+
+  private dropEmergency(): void {
+    try {
+      this.emergency.clearSync();
+      this.emergencyMaybePresent = false;
+    } catch {
+      /* ignoré */
+    }
+  }
+
   /** Urgence présente mais illisible (corrompue, autre version…) : effacée. */
   private dropUnreadableEmergency(): void {
     try {
@@ -392,16 +565,32 @@ export class EmergencyBackedSaveStore implements SaveStore, EmergencySaveCapable
 
 // ---------- Mémoire (dernier recours, non persistant) ----------
 
-export class MemorySaveStore implements SaveStore {
+const copyWorld = (w: SavedWorld): SavedWorld => ({ ...w, blocks: w.blocks.slice() });
+
+export class MemorySaveStore implements SaveStore, PreviousWorldCapable {
   private data: SavedWorld | null = null;
+  private previous: SavedWorld | null = null;
   async load(): Promise<SavedWorld | null> {
-    return this.data ? { ...this.data, blocks: this.data.blocks.slice() } : null;
+    return this.data ? copyWorld(this.data) : null;
   }
   async save(world: SavedWorld): Promise<void> {
-    this.data = { ...world, blocks: world.blocks.slice() };
+    this.data = copyWorld(world);
   }
   async clear(): Promise<void> {
     this.data = null;
+  }
+  async savePrevious(world: SavedWorld): Promise<void> {
+    this.previous = copyWorld(world);
+  }
+  async hasPrevious(): Promise<boolean> {
+    return this.previous !== null;
+  }
+  async swapWithPrevious(current: SavedWorld): Promise<SavedWorld | null> {
+    const restored = this.previous;
+    if (!restored) return null;
+    this.previous = copyWorld(current);
+    this.data = restored;
+    return copyWorld(restored);
   }
 }
 
