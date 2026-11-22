@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aperçu des assets</title>
+<!--
+  Outil de développement, NON publié (hors de public/, pas une entrée de build).
+  Lancer `npm run dev` puis ouvrir /construction-brique/tools/asset-preview.html.
+  Les listes (tuiles, icônes, sons, couleurs) viennent directement de src/assets/manifest.ts.
+-->
+<style>
+  @font-face { font-family: 'Andika'; src: url('../assets/fonts/Andika-Regular.woff2') format('woff2'); font-weight: 400; }
+  @font-face { font-family: 'Andika'; src: url('../assets/fonts/Andika-Bold.woff2') format('woff2'); font-weight: 700; }
+  body { font-family: 'Andika', sans-serif; background: #7ec8ff; color: #123; margin: 0; padding: 16px; }
+  h1, h2 { margin: 16px 0 8px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 12px; }
+  figure { margin: 0; background: #fff8; border-radius: 10px; padding: 8px; text-align: center; width: 128px; }
+  figure img { width: 96px; height: 96px; image-rendering: pixelated; display: block; margin: 0 auto 4px;
+    background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+  .icons figure img { background: #2b3440; border-radius: 50%; padding: 6px; box-sizing: border-box; image-rendering: auto; }
+  .tinted canvas { width: 96px; height: 96px; display: block; margin: 0 auto 4px; image-rendering: pixelated; }
+  figcaption { font-size: 13px; word-break: break-all; }
+  button { font: inherit; font-size: 15px; padding: 8px 12px; border-radius: 10px; border: 0; background: #fff; cursor: pointer; }
+  button:active { background: #ffe082; }
+  .sample { font-size: 28px; }
+</style>
+</head>
+<body>
+<h1>Aperçu des assets</h1>
+<p class="sample">Andika : Construis ta maison ! <b>Gras : Nouveau monde</b> — àéèçù 0123</p>
+
+<h2>Tuiles (128 px)</h2>
+<div class="grid" id="tiles"></div>
+
+<h2>Laine teintée (tuile <code>wool</code> × couleur, aperçu approximatif)</h2>
+<div class="grid tinted" id="wool"></div>
+
+<h2>Blocs pleins or / diamant (aperçu approximatif)</h2>
+<div class="grid tinted" id="gems"></div>
+
+<h2>Icônes</h2>
+<div class="grid icons" id="icons"></div>
+
+<h2>Sons</h2>
+<div class="grid" id="sounds"></div>
+
+<script type="module">
+  import { TEXTURE_TILE_KEYS, TEXTURE_TILES, ICONS, SOUNDS, WOOL_TINTS, GEM_BLOCK_TILES } from '/src/assets/manifest.ts';
+
+  function fig(parent, el, caption) {
+    const f = document.createElement('figure');
+    const c = document.createElement('figcaption');
+    c.textContent = caption;
+    f.append(el, c);
+    parent.append(f);
+  }
+
+  // Teinte par multiplication (le vrai rendu du jeu : tintWool / recolorGem dans src/game/atlas.ts).
+  function tintCanvas(img, hex) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 128;
+    const g = cv.getContext('2d');
+    g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = '#' + hex.toString(16).padStart(6, '0');
+    g.fillRect(0, 0, 128, 128);
+    return cv;
+  }
+
+  function onLoad(url, cb) {
+    const img = new Image();
+    img.onload = () => cb(img);
+    img.src = url;
+  }
+
+  const tiles = document.getElementById('tiles');
+  for (const k of TEXTURE_TILE_KEYS) { const i = new Image(); i.src = TEXTURE_TILES[k]; fig(tiles, i, k); }
+
+  const icons = document.getElementById('icons');
+  for (const [k, url] of Object.entries(ICONS)) { const i = new Image(); i.src = url; fig(icons, i, k); }
+
+  onLoad(TEXTURE_TILES.wool, (img) => {
+    const box = document.getElementById('wool');
+    for (const [name, hex] of Object.entries(WOOL_TINTS)) fig(box, tintCanvas(img, hex), name);
+  });
+
+  const gems = document.getElementById('gems');
+  for (const [name, { base, color }] of Object.entries(GEM_BLOCK_TILES)) {
+    onLoad(TEXTURE_TILES[base], (img) => fig(gems, tintCanvas(img, color), name + ' ← ' + base));
+  }
+
+  const sounds = document.getElementById('sounds');
+  for (const [k, urls] of Object.entries(SOUNDS)) {
+    urls.forEach((url, i) => {
+      const b = document.createElement('button');
+      b.textContent = '▶ ' + k + '_' + (i + 1);
+      b.onclick = () => new Audio(url).play();
+      sounds.append(b);
+    });
+  }
+</script>
+</body>
+</html>

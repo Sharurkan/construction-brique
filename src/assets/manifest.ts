@@ -32,15 +32,6 @@ export const TEXTURE_TILE_KEYS = [
   'ore_silver',
   'wool', // tuile claire neutre (cotton_tan) à teinter avec WOOL_TINTS
   'bedrock',
-  // Laines natives du pack (couleurs douces, non vives) :
-  'wool_red',
-  'wool_green',
-  'wool_blue',
-  // Tuiles bonus :
-  'stone_brick',
-  'planks_red',
-  'snow',
-  'ice',
   'glass_frame', // base des blocs pleins d'or et de diamant (recolorée, voir GEM_BLOCK_TILES)
 ] as const;
 
@@ -74,12 +65,11 @@ export const SOUNDS: Record<string, string[]> = {
 
 /**
  * Icônes. Les SVG/PNG Kenney sont des pictos BLANCS (sauf btn_break, pioche colorée,
- * et le joystick) : les poser sur un fond (btn_bg ou une pastille CSS colorée).
+ * et le joystick) : les poser sur une pastille CSS colorée.
  */
 export const ICONS: Record<string, string> = {
   joystick_base: `${BASE}icons/joystick_base.svg`,
   joystick_knob: `${BASE}icons/joystick_knob.svg`,
-  btn_bg: `${BASE}icons/btn_bg.svg`,
   btn_break: `${BASE}icons/btn_break.png`,
   btn_place: `${BASE}icons/btn_place.svg`,
   btn_jump: `${BASE}icons/btn_jump.svg`,
@@ -121,10 +111,3 @@ export const GEM_BLOCK_TILES: Record<string, { base: TextureTileKey; color: numb
   diamond_block: { base: 'glass_frame', color: 0x22d3f0 },
   gold_block: { base: 'glass_frame', color: 0xffc414 },
 };
-
-/**
- * Couleurs de laine qui existent aussi en tuile native du pack (wool_<couleur>).
- * Attention : teintes Kenney plutôt douces/terreuses (rouge brique, vert, bleu),
- * moins vives que WOOL_TINTS ; au choix du moteur.
- */
-export const WOOL_HAS_NATIVE: string[] = ['red', 'green', 'blue'];
